@@ -1,20 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
-import '../../auth/cubit/auth_cubit.dart';
-import '../../auth/cubit/auth_state.dart';
-import '../../home/pages/home_page.dart';
-import '../../profile/pages/profile_page.dart';
+import 'package:rentalify/features/auth/cubit/auth_cubit.dart';
+import 'package:rentalify/features/auth/cubit/auth_state.dart';
+import 'package:rentalify/features/home/dashboard/admin/pages/admin_shell_page.dart';
+import 'package:rentalify/features/home/dashboard/borrower/pages/borrower_pengembalian_page.dart';
+import 'package:rentalify/features/home/dashboard/borrower/pages/borrowing_peminjaman_page.dart';
+import 'package:rentalify/features/home/dashboard/staff/pages/staff_laporan_page.dart';
+import 'package:rentalify/features/home/dashboard/staff/pages/staff_pengembalian_page.dart';
+import 'package:rentalify/features/home/pages/home_page.dart';
+import 'package:rentalify/features/modules/profile/pages/profile_page.dart';
+import '../../../core/services/supabase_service.dart';
 import '../widgets/bottom_nav_item.dart';
 
-class MainPage extends StatefulWidget {
-  const MainPage({super.key});    
+class MainShellPage extends StatefulWidget {
+  const MainShellPage({super.key});
 
   @override
-  State<MainPage> createState() => _MainPageState();
+  State<MainShellPage> createState() => _MainShellPageState();
 }
 
-class _MainPageState extends State<MainPage> {
+class _MainShellPageState extends State<MainShellPage> {
   int _selectedIndex = 0;
 
   // Navigation items untuk setiap role
@@ -32,9 +38,9 @@ class _MainPageState extends State<MainPage> {
           label: 'Peminjaman',
         ),
         BottomNavItem(
-          icon: Icons.history_outlined,
-          activeIcon: Icons.history,
-          label: 'Riwayat',
+          icon: Icons.assignment_return_outlined,
+          activeIcon: Icons.assignment_return,
+          label: 'Tanggungan',
         ),
         BottomNavItem(
           icon: Icons.person_outline,
@@ -50,37 +56,14 @@ class _MainPageState extends State<MainPage> {
           label: 'Home',
         ),
         BottomNavItem(
-          icon: Icons.pending_actions_outlined,
-          activeIcon: Icons.pending_actions,
-          label: 'Persetujuan',
-        ),
-        BottomNavItem(
           icon: Icons.assignment_return_outlined,
           activeIcon: Icons.assignment_return,
           label: 'Pengembalian',
         ),
         BottomNavItem(
-          icon: Icons.person_outline,
-          activeIcon: Icons.person,
-          label: 'Profile',
-        ),
-      ];
-    } else if (role == 'admin') {
-      return [
-        BottomNavItem(
-          icon: Icons.dashboard_outlined,
-          activeIcon: Icons.dashboard,
-          label: 'Dashboard',
-        ),
-        BottomNavItem(
-          icon: Icons.inventory_2_outlined,
-          activeIcon: Icons.inventory_2,
-          label: 'Alat',
-        ),
-        BottomNavItem(
-          icon: Icons.people_outline,
-          activeIcon: Icons.people,
-          label: 'Users',
+          icon: Icons.assessment_outlined,
+          activeIcon: Icons.assessment,
+          label: 'Laporan',
         ),
         BottomNavItem(
           icon: Icons.person_outline,
@@ -89,6 +72,8 @@ class _MainPageState extends State<MainPage> {
         ),
       ];
     }
+    
+    // Admin tidak pakai bottom navbar, jadi return empty
     return [];
   }
 
@@ -99,26 +84,20 @@ class _MainPageState extends State<MainPage> {
     if (role == 'peminjam') {
       return [
         const HomePage(),
-        _buildPlaceholderPage('Peminjaman Saya'),
-        _buildPlaceholderPage('Riwayat'),
+        const BorrowerPeminjamanPage(),
+        const BorrowerTanggunganPage(),
         profilePage,
       ];
     } else if (role == 'petugas') {
       return [
-        const HomePage(),
-        _buildPlaceholderPage('Persetujuan'),
-        _buildPlaceholderPage('Pengembalian'),
-        profilePage,
-      ];
-    } else if (role == 'admin') {
-      return [
-        const HomePage(),
-        _buildPlaceholderPage('Kelola Alat'),
-        _buildPlaceholderPage('Kelola Users'),
+        const HomePage(), // StaffDashboard - Persetujuan
+        const StaffPengembalianPage(), // Pemantauan Pengembalian
+        const StaffLaporanPage(), // Laporan
         profilePage,
       ];
     }
     
+    // Admin tidak pakai pages ini karena punya shell sendiri
     return [
       const HomePage(),
       _buildPlaceholderPage('Page 2'),
@@ -159,6 +138,11 @@ class _MainPageState extends State<MainPage> {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthCubit, AuthState>(
       builder: (context, state) {
+        // ⭐ PERUBAHAN UTAMA: Jika admin, return AdminShellPage langsung
+        if (state.userRole == 'admin') {
+          return const AdminShellPage();
+        }
+
         final navItems = _getNavItems(state.userRole);
         final pages = _getPages(state.userRole);
 

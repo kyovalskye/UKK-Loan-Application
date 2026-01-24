@@ -226,14 +226,20 @@ class SupabaseService {
     Map<String, dynamic>? dataLama,
     Map<String, dynamic>? dataBaru,
   }) async {
-    await _client.from('log_aktivitas').insert({
-      'nama_tabel': namaTabel,
-      'operasi': operasi,
-      'id_record': idRecord,
-      'data_lama': dataLama,
-      'data_baru': dataBaru,
-      'user_id': currentUserId,
-    });
+    try {
+      await _client.from('log_aktivitas').insert({
+        'nama_tabel': namaTabel,
+        'operasi': operasi,
+        'id_record': idRecord,
+        'data_lama': dataLama,
+        'data_baru': dataBaru,
+        'user_id': currentUserId,
+      });
+    } catch (e) {
+      // Silently fail log aktivitas jika RLS belum setup
+      // Ini tidak menghalangi operasi utama
+      print('Warning: Failed to log activity - ${e.toString()}');
+    }
   }
 
   Future<List<Map<String, dynamic>>> getLogAktivitas({

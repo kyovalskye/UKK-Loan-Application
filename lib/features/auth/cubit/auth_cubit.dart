@@ -1,11 +1,43 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'dart:async';
 import '../../../core/services/supabase_service.dart';
 import 'auth_state.dart';
 
 class AuthCubit extends Cubit<AuthState> {
   final SupabaseService _supabaseService;
+  StreamSubscription? _authSubscription;
 
-  AuthCubit(this._supabaseService) : super(const AuthState());
+  AuthCubit(this._supabaseService) : super(const AuthState()) {
+    // Listen to auth state changes
+    _initAuthListener();
+  }
+
+  void _initAuthListener() {
+    _authSubscription = _supabaseService.authStateChanges.listen((event) {
+      final user = event.session?.user;
+      if (user != null && state.status != AuthStatus.authenticated) {
+        // User logged in
+        _loadUserData(user.id);
+      } else if (user == null && state.status != AuthStatus.unauthenticated) {
+        // User logged out
+        emit(const AuthState(status: AuthStatus.unauthenticated));
+      }
+    });
+  }
+
+  Future<void> _loadUserData(String userId) async {
+    try {
+      final userData = await _supabaseService.getUserData(userId);
+      if (userData != null) {
+        emit(state.copyWith(
+          status: AuthStatus.authenticated,
+          userData: userData,
+        ));
+      }
+    } catch (e) {
+      print('Error loading user data: $e');
+    }
+  }
 
   Future<void> checkAuthStatus() async {
     emit(state.copyWith(status: AuthStatus.loading));
@@ -50,8 +82,8 @@ class AuthCubit extends Cubit<AuthState> {
       if (response.user != null) {
         final userData = await _supabaseService.getUserData(response.user!.id);
         
-        // Log aktivitas login
-        await _supabaseService.createLogAktivitas(
+        // Log aktivitas login (non-blocking)
+        _supabaseService.createLogAktivitas(
           namaTabel: 'users',
           operasi: 'LOGIN',
           idRecord: null,
@@ -100,8 +132,8 @@ class AuthCubit extends Cubit<AuthState> {
           role: role,
         );
 
-        // Log aktivitas
-        await _supabaseService.createLogAktivitas(
+        // Log aktivitas (non-blocking)
+        _supabaseService.createLogAktivitas(
           namaTabel: 'users',
           operasi: 'INSERT',
           idRecord: null,
@@ -125,8 +157,8 @@ class AuthCubit extends Cubit<AuthState> {
 
   Future<void> signOut() async {
     try {
-      // Log aktivitas logout
-      await _supabaseService.createLogAktivitas(
+      // Log aktivitas logout (non-blocking)
+      _supabaseService.createLogAktivitas(
         namaTabel: 'users',
         operasi: 'LOGOUT',
         idRecord: null,
@@ -153,5 +185,11 @@ class AuthCubit extends Cubit<AuthState> {
       return 'Tidak ada koneksi internet';
     }
     return 'Terjadi kesalahan, silakan coba lagi';
+  }
+
+  @override
+  Future<void> close() {
+    _authSubscription?.cancel();
+    return super.close();
   }
 }

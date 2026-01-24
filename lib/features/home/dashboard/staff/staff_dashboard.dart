@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
 
-class PetugasDashboard extends StatelessWidget {
+class StaffDashboard extends StatelessWidget {
   final List<Map<String, dynamic>> requests;
 
-  const PetugasDashboard({
+  const StaffDashboard({
     super.key,
     required this.requests,
   });

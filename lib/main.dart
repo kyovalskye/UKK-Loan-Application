@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:rentalify/core/themes/app_theme.dart';
-import 'package:rentalify/features/main/pages/main_page.dart';
+import 'package:rentalify/app/pages/main_shell_page.dart';
+import 'package:rentalify/features/modules/approval/cubit/approval_cubit.dart';
+import 'package:rentalify/features/modules/borrowing/cubit/borrowing_cubit.dart';
+import 'package:rentalify/features/modules/borrowing/cubit/borrowing_list_cubit.dart';
 import 'core/services/supabase_service.dart';
 import 'features/auth/cubit/auth_cubit.dart';
 import 'features/auth/cubit/auth_state.dart';
 import 'features/auth/pages/login_page.dart';
 import 'features/home/cubit/home_cubit.dart';
-import 'features/borrowing/cubit/borrowing_cubit.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,7 +33,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
+    return MultiBlocProvider( 
       providers: [
         BlocProvider(
           create: (context) => AuthCubit(SupabaseService())..checkAuthStatus(),
@@ -41,6 +43,12 @@ class MyApp extends StatelessWidget {
         ),
         BlocProvider(
           create: (context) => BorrowingCubit(SupabaseService()),
+        ),
+        BlocProvider(
+          create: (context) => BorrowingListCubit(SupabaseService()),
+        ),
+        BlocProvider(
+          create: (context) => ApprovalCubit(SupabaseService()),
         ),
       ],
       child: MaterialApp(
@@ -64,7 +72,7 @@ class AuthWrapper extends StatelessWidget {
         if (state.status == AuthStatus.authenticated) {
           // Navigate to MainPage when authenticated
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const MainPage()),
+            MaterialPageRoute(builder: (context) => const MainShellPage()),
             (route) => false,
           );
         } else if (state.status == AuthStatus.unauthenticated) {
@@ -89,7 +97,7 @@ class AuthWrapper extends StatelessWidget {
 
           // Default to LoginPage
           if (state.status == AuthStatus.authenticated) {
-            return const MainPage();
+            return const MainShellPage();
           }
 
           return const LoginPage();

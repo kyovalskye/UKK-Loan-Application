@@ -148,51 +148,51 @@ class AdminDashboard extends StatelessWidget {
           const SizedBox(height: 24),
 
           // Quick Actions
-          Text(
-            'Menu Utama',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 12),
-          _buildMenuCard(
-            context,
-            title: 'Kelola Alat',
-            subtitle: 'Tambah, edit, hapus data alat',
-            icon: Icons.settings,
-            onTap: () {
-              // Navigate to alat management
-            },
-          ),
-          const SizedBox(height: 12),
-          _buildMenuCard(
-            context,
-            title: 'Kelola User',
-            subtitle: 'Manajemen user dan hak akses',
-            icon: Icons.people,
-            onTap: () {
-              // Navigate to user management
-            },
-          ),
-          const SizedBox(height: 12),
-          _buildMenuCard(
-            context,
-            title: 'Laporan',
-            subtitle: 'Generate dan lihat laporan',
-            icon: Icons.assessment,
-            onTap: () {
-              // Navigate to reports
-            },
-          ),
-          const SizedBox(height: 12),
-          _buildMenuCard(
-            context,
-            title: 'Log Aktivitas',
-            subtitle: 'Monitor semua aktivitas sistem',
-            icon: Icons.history,
-            onTap: () {
-              // Navigate to activity logs
-            },
-          ),
-          const SizedBox(height: 80), // Bottom padding for navbar
+          // Text(
+          //   'Menu Utama',
+          //   style: Theme.of(context).textTheme.titleLarge,
+          // ),
+          // const SizedBox(height: 12),
+          // _buildMenuCard(
+          //   context,
+          //   title: 'Kelola Alat',
+          //   subtitle: 'Tambah, edit, hapus data alat',
+          //   icon: Icons.settings,
+          //   onTap: () {
+          //     // Navigate to alat management
+          //   },
+          // ),
+          // const SizedBox(height: 12),
+          // _buildMenuCard(
+          //   context,
+          //   title: 'Kelola User',
+          //   subtitle: 'Manajemen user dan hak akses',
+          //   icon: Icons.people,
+          //   onTap: () {
+          //     // Navigate to user management
+          //   },
+          // ),
+          // const SizedBox(height: 12),
+          // _buildMenuCard(
+          //   context,
+          //   title: 'Laporan',
+          //   subtitle: 'Generate dan lihat laporan',
+          //   icon: Icons.assessment,
+          //   onTap: () {
+          //     // Navigate to reports
+          //   },
+          // ),
+          // const SizedBox(height: 12),
+          // _buildMenuCard(
+          //   context,
+          //   title: 'Log Aktivitas',
+          //   subtitle: 'Monitor semua aktivitas sistem',
+          //   icon: Icons.history,
+          //   onTap: () {
+          //     // Navigate to activity logs
+          //   },
+          // ),
+          // const SizedBox(height: 80), // Bottom padding for navbar
         ],
       ),
     );

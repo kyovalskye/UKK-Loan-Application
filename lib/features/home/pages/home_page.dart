@@ -5,9 +5,9 @@ import '../../auth/cubit/auth_cubit.dart';
 import '../../auth/cubit/auth_state.dart';
 import '../cubit/home_cubit.dart';
 import '../cubit/home_state.dart';
-import '../widgets/admin_dashboard.dart';
-import '../widgets/petugas_dashboard.dart';
-import '../widgets/peminjam_dashboard.dart';
+import '../dashboard/admin/admin_dashboard.dart';
+import '../dashboard/staff/staff_dashboard.dart';
+import '../dashboard/borrower/borrower_dashboard.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -35,53 +35,56 @@ class _HomePageState extends State<HomePage> {
     return BlocBuilder<AuthCubit, AuthState>(
       builder: (context, authState) {
         return Scaffold(
-          appBar: AppBar(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _getGreeting(),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                Text(
-                  authState.userName ?? 'User',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ],
-            ),
-            actions: [
-              Container(
-                margin: const EdgeInsets.only(right: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: _getRoleColor(authState.userRole).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: _getRoleColor(authState.userRole),
-                    width: 1,
+          // ⭐ PERUBAHAN: Admin tidak perlu AppBar di sini karena sudah ada di AdminShellPage
+          appBar: authState.userRole == 'admin' 
+              ? null 
+              : AppBar(
+                  title: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _getGreeting(),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      Text(
+                        authState.userName ?? 'User',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ],
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      _getRoleIcon(authState.userRole),
-                      size: 16,
-                      color: _getRoleColor(authState.userRole),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _getRoleLabel(authState.userRole),
-                      style: TextStyle(
-                        color: _getRoleColor(authState.userRole),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
+                  actions: [
+                    Container(
+                      margin: const EdgeInsets.only(right: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _getRoleColor(authState.userRole).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _getRoleColor(authState.userRole),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _getRoleIcon(authState.userRole),
+                            size: 16,
+                            color: _getRoleColor(authState.userRole),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _getRoleLabel(authState.userRole),
+                            style: TextStyle(
+                              color: _getRoleColor(authState.userRole),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
           body: BlocBuilder<HomeCubit, HomeState>(
             builder: (context, state) {
               if (state.status == HomeStatus.loading) {
@@ -125,9 +128,9 @@ class _HomePageState extends State<HomePage> {
               if (authState.isAdmin) {
                 return AdminDashboard(statistics: state.statistics);
               } else if (authState.isPetugas) {
-                return PetugasDashboard(requests: state.pendingRequests);
+                return StaffDashboard(requests: state.pendingRequests);
               } else if (authState.isPeminjam) {
-                return PeminjamDashboard(alatList: state.alatList);
+                return BorrowerDashboard(alatList: state.alatList);
               }
 
               return const Center(child: Text('Role tidak dikenali'));
