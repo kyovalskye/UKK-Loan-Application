@@ -31,88 +31,109 @@ class BorrowingCubit extends Cubit<BorrowingState> {
     emit(state.copyWith(keperluan: keperluan));
   }
 
-  Future<void> submitPeminjamanFromDialog({
-    required Map<String, dynamic> alat,
-    required DateTime tanggalPinjam,
-    required int jumlahHari,
-    required int jumlahPinjam,
-    required String keperluan,
-  }) async {
-    // Calculate tanggal kembali
-    final tanggalKembali = tanggalPinjam.add(Duration(days: jumlahHari));
+ Future<void> submitPeminjamanFromDialog({
+  required Map<String, dynamic> alat,
+  required DateTime tanggalPinjam,
+  required int jumlahHari,
+  required int jumlahPinjam,
+  required String keperluan,
+}) async {
+  // Calculate tanggal kembali
+  final tanggalKembali = tanggalPinjam.add(Duration(days: jumlahHari));
 
-    // Validation
-    if (jumlahPinjam < 1) {
-      emit(state.copyWith(
-        status: BorrowingStatus.error,
-        errorMessage: 'Jumlah pinjam minimal 1',
-      ));
-      return;
-    }
-
-    final jumlahTersedia = alat['jumlah_tersedia'] as int;
-    if (jumlahPinjam > jumlahTersedia) {
-      emit(state.copyWith(
-        status: BorrowingStatus.error,
-        errorMessage: 'Jumlah melebihi stok tersedia ($jumlahTersedia)',
-      ));
-      return;
-    }
-
-    if (jumlahHari < 1 || jumlahHari > 7) {
-      emit(state.copyWith(
-        status: BorrowingStatus.error,
-        errorMessage: 'Durasi peminjaman 1-7 hari',
-      ));
-      return;
-    }
-
-    emit(state.copyWith(status: BorrowingStatus.submitting));
-
-    try {
-      // Generate kode peminjaman
-      final kodePeminjaman = _generateKodePeminjaman();
-
-      // Create peminjaman
-      final userId = _supabaseService.currentUserId;
-      await _supabaseService.createPeminjaman({
-        'kode_peminjaman': kodePeminjaman,
-        'id_user': userId,
-        'id_alat': alat['id_alat'],
-        'tanggal_pinjam': tanggalPinjam.toIso8601String().split('T')[0],
-        'tanggal_kembali_rencana': tanggalKembali.toIso8601String().split('T')[0],
-        'jumlah_pinjam': jumlahPinjam,
-        'keperluan': keperluan.isNotEmpty ? keperluan : null,
-        'status_peminjaman': 'diajukan',
-      });
-
-      // Log aktivitas
-      await _supabaseService.createLogAktivitas(
-        namaTabel: 'peminjaman',
-        operasi: 'INSERT',
-        dataBaru: {
-          'kode_peminjaman': kodePeminjaman,
-          'alat': alat['nama_alat'],
-          'jumlah': jumlahPinjam,
-          'durasi': '$jumlahHari hari',
-        },
-      );
-
-      emit(state.copyWith(
-        status: BorrowingStatus.success,
-        successMessage: 'Permintaan peminjaman berhasil diajukan! Tunggu persetujuan petugas.',
-      ));
-
-      // Reset after short delay
-      await Future.delayed(const Duration(milliseconds: 500));
-      emit(const BorrowingState());
-    } catch (e) {
-      emit(state.copyWith(
-        status: BorrowingStatus.error,
-        errorMessage: 'Gagal mengajukan peminjaman: ${e.toString()}',
-      ));
-    }
+  // Validation
+  if (jumlahPinjam < 1) {
+    emit(state.copyWith(
+      status: BorrowingStatus.error,
+      errorMessage: 'Jumlah pinjam minimal 1',
+    ));
+    return;
   }
+
+  final jumlahTersedia = alat['jumlah_tersedia'] as int;
+  if (jumlahPinjam > jumlahTersedia) {
+    emit(state.copyWith(
+      status: BorrowingStatus.error,
+      errorMessage: 'Jumlah melebihi stok tersedia ($jumlahTersedia)',
+    ));
+    return;
+  }
+
+  if (jumlahHari < 1 || jumlahHari > 7) {
+    emit(state.copyWith(
+      status: BorrowingStatus.error,
+      errorMessage: 'Durasi peminjaman 1-7 hari',
+    ));
+    return;
+  }
+
+  emit(state.copyWith(status: BorrowingStatus.submitting));
+
+  try {
+    // Generate kode peminjaman
+    final kodePeminjaman = _generateKodePeminjaman();
+    
+    // Get user ID
+    final userId = _supabaseService.currentUserId;
+    
+    // Debug print
+    print('🔍 Debug Info:');
+    print('User ID: $userId');
+    print('Kode Peminjaman: $kodePeminjaman');
+    print('ID Alat: ${alat['id_alat']}');
+    print('Tanggal Pinjam: ${tanggalPinjam.toIso8601String().split('T')[0]}');
+    print('Tanggal Kembali: ${tanggalKembali.toIso8601String().split('T')[0]}');
+    print('Jumlah Pinjam: $jumlahPinjam');
+
+    // Prepare data
+    final peminjamanData = {
+      'kode_peminjaman': kodePeminjaman,
+      'id_user': userId,
+      'id_alat': alat['id_alat'],
+      'tanggal_pinjam': tanggalPinjam.toIso8601String().split('T')[0],
+      'tanggal_kembali_rencana': tanggalKembali.toIso8601String().split('T')[0],
+      'jumlah_pinjam': jumlahPinjam,
+      'keperluan': keperluan.isNotEmpty ? keperluan : null,
+      'status_peminjaman': 'diajukan',
+    };
+
+    print('📦 Data yang akan dikirim: $peminjamanData');
+
+    // Create peminjaman
+    final result = await _supabaseService.createPeminjaman(peminjamanData);
+    
+
+    // Log aktivitas
+    await _supabaseService.createLogAktivitas(
+      namaTabel: 'peminjaman',
+      operasi: 'INSERT',
+      dataBaru: {
+        'kode_peminjaman': kodePeminjaman,
+        'alat': alat['nama_alat'],
+        'jumlah': jumlahPinjam,
+        'durasi': '$jumlahHari hari',
+      },
+    );
+
+    emit(state.copyWith(
+      status: BorrowingStatus.success,
+      successMessage: 'Permintaan peminjaman berhasil diajukan! Tunggu persetujuan petugas.',
+    ));
+
+    // Reset after short delay
+    await Future.delayed(const Duration(milliseconds: 500));
+    emit(const BorrowingState());
+  } catch (e, stackTrace) {
+    print('❌ Error saat submit peminjaman:');
+    print('Error: $e');
+    print('StackTrace: $stackTrace');
+    
+    emit(state.copyWith(
+      status: BorrowingStatus.error,
+      errorMessage: 'Gagal mengajukan peminjaman: ${e.toString()}',
+    ));
+  }
+}
 
   Future<void> submitPeminjaman() async {
     if (state.selectedAlat == null ||
