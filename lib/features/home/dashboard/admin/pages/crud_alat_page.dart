@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
+import 'package:rentalify/features/home/dashboard/admin/cubit/crud_alat_cubit.dart';
 
 class CrudAlatPage extends StatefulWidget {
   const CrudAlatPage({super.key});
@@ -13,114 +15,183 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
   String _selectedFilter = 'Semua';
   String _selectedKategori = 'Semua';
 
-  // Dummy data
-  final List<Map<String, dynamic>> _alatList = [
-    {
-      'id': 1,
-      'nama': 'OBD2 Scanner Launch X431 Pro',
-      'kategori': 'Diagnostic Tools',
-      'kondisi': 'baik',
-      'status': 'tersedia',
-      'jumlah_total': 5,
-      'jumlah_tersedia': 3,
-    },
-    {
-      'id': 2,
-      'nama': 'Hydraulic Jack 3 Ton',
-      'kategori': 'Hand Tools',
-      'kondisi': 'baik',
-      'status': 'dipinjam',
-      'jumlah_total': 10,
-      'jumlah_tersedia': 7,
-    },
-    {
-      'id': 3,
-      'nama': 'Impact Wrench Makita',
-      'kategori': 'Power Tools',
-      'kondisi': 'rusak_ringan',
-      'status': 'maintenance',
-      'jumlah_total': 8,
-      'jumlah_tersedia': 0,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    context.read<CrudAlatCubit>().loadAlat();
+  }
+
+  List<Map<String, dynamic>> _filterAlat(List<Map<String, dynamic>> alatList) {
+    return context.read<CrudAlatCubit>().filterAlat(
+          alatList: alatList,
+          status: _selectedFilter,
+          kategori: _selectedKategori,
+          searchQuery: _searchController.text,
+        );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          // Search & Filter
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: AppColors.surface,
-            child: Column(
-              children: [
-                // Search Bar
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Cari alat...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() {});
-                            },
-                          )
-                        : null,
-                  ),
-                  onChanged: (value) => setState(() {}),
-                ),
-                const SizedBox(height: 12),
-                // Filter Row
-                Row(
+      body: BlocConsumer<CrudAlatCubit, CrudAlatState>(
+        listener: (context, state) {
+          if (state is CrudAlatSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppColors.success,
+              ),
+            );
+          } else if (state is CrudAlatError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          }
+        },
+        builder: (context, state) {
+          return Column(
+            children: [
+              // Search & Filter
+              Container(
+                padding: const EdgeInsets.all(16),
+                color: AppColors.surface,
+                child: Column(
                   children: [
-                    Expanded(
-                      child: _buildFilterDropdown(
-                        label: 'Status',
-                        value: _selectedFilter,
-                        items: ['Semua', 'Tersedia', 'Dipinjam', 'Maintenance'],
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedFilter = value!;
-                          });
-                        },
+                    // Search Bar
+                    TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Cari alat...',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {});
+                                },
+                              )
+                            : null,
                       ),
+                      onChanged: (value) => setState(() {}),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildFilterDropdown(
-                        label: 'Kategori',
-                        value: _selectedKategori,
-                        items: ['Semua', 'Diagnostic Tools', 'Hand Tools', 'Power Tools'],
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedKategori = value!;
-                          });
-                        },
-                      ),
+                    const SizedBox(height: 12),
+                    // Filter Row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildFilterDropdown(
+                            label: 'Status',
+                            value: _selectedFilter,
+                            items: [
+                              'Semua',
+                              'Tersedia',
+                              'Dipinjam',
+                              'Maintenance'
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedFilter = value!;
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildFilterDropdown(
+                            label: 'Kategori',
+                            value: _selectedKategori,
+                            items: [
+                              'Semua',
+                              'Diagnostic Tools',
+                              'Hand Tools',
+                              'Power Tools'
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedKategori = value!;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
 
-          // List
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _alatList.length,
-              itemBuilder: (context, index) {
-                final alat = _alatList[index];
-                return _buildAlatCard(alat);
-              },
-            ),
-          ),
-        ],
+              // List
+              Expanded(
+                child: Builder(
+                  builder: (context) {
+                    if (state is CrudAlatLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (state is CrudAlatLoaded) {
+                      final filteredAlat = _filterAlat(state.alatList);
+
+                      if (filteredAlat.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.inventory_2_outlined,
+                                  size: 64, color: AppColors.textTertiary),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Tidak ada alat',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return RefreshIndicator(
+                        onRefresh: () =>
+                            context.read<CrudAlatCubit>().loadAlat(),
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: filteredAlat.length,
+                          itemBuilder: (context, index) {
+                            final alat = filteredAlat[index];
+                            return _buildAlatCard(alat);
+                          },
+                        ),
+                      );
+                    }
+
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.inventory_2_outlined,
+                              size: 64, color: AppColors.textTertiary),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Tidak ada alat',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAlatDialog(),
@@ -200,7 +271,7 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            alat['nama'],
+                            alat['nama_alat'] ?? 'No Name',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -209,7 +280,7 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            alat['kategori'],
+                            alat['kategori'] ?? 'No Category',
                             style: const TextStyle(
                               fontSize: 14,
                               color: AppColors.textSecondary,
@@ -218,7 +289,7 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                         ],
                       ),
                     ),
-                    _buildStatusBadge(alat['status']),
+                    _buildStatusBadge(alat['status'] ?? 'tersedia'),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -229,21 +300,21 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                     Expanded(
                       child: _buildInfoChip(
                         Icons.inventory,
-                        'Total: ${alat['jumlah_total']}',
+                        'Total: ${alat['jumlah_total'] ?? 0}',
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: _buildInfoChip(
                         Icons.check_circle,
-                        'Tersedia: ${alat['jumlah_tersedia']}',
+                        'Tersedia: ${alat['jumlah_tersedia'] ?? 0}',
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: _buildInfoChip(
                         Icons.build,
-                        _getKondisiText(alat['kondisi']),
+                        _getKondisiText(alat['kondisi'] ?? 'baik'),
                       ),
                     ),
                   ],
@@ -359,8 +430,10 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
 
   void _showAlatDialog({Map<String, dynamic>? alat}) {
     final isEdit = alat != null;
-    final namaController = TextEditingController(text: alat?['nama'] ?? '');
-    final kategoriController = TextEditingController(text: alat?['kategori'] ?? '');
+    final namaController =
+        TextEditingController(text: alat?['nama_alat'] ?? '');
+    final kategoriController =
+        TextEditingController(text: alat?['kategori'] ?? '');
     final jumlahController = TextEditingController(
       text: alat?['jumlah_total']?.toString() ?? '1',
     );
@@ -369,7 +442,7 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: AppColors.surface,
           title: Text(isEdit ? 'Edit Alat' : 'Tambah Alat'),
@@ -411,8 +484,10 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                   dropdownColor: AppColors.surface,
                   items: const [
                     DropdownMenuItem(value: 'baik', child: Text('Baik')),
-                    DropdownMenuItem(value: 'rusak_ringan', child: Text('Rusak Ringan')),
-                    DropdownMenuItem(value: 'rusak_berat', child: Text('Rusak Berat')),
+                    DropdownMenuItem(
+                        value: 'rusak_ringan', child: Text('Rusak Ringan')),
+                    DropdownMenuItem(
+                        value: 'rusak_berat', child: Text('Rusak Berat')),
                   ],
                   onChanged: (value) {
                     setDialogState(() {
@@ -429,9 +504,12 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                   ),
                   dropdownColor: AppColors.surface,
                   items: const [
-                    DropdownMenuItem(value: 'tersedia', child: Text('Tersedia')),
-                    DropdownMenuItem(value: 'dipinjam', child: Text('Dipinjam')),
-                    DropdownMenuItem(value: 'maintenance', child: Text('Maintenance')),
+                    DropdownMenuItem(
+                        value: 'tersedia', child: Text('Tersedia')),
+                    DropdownMenuItem(
+                        value: 'dipinjam', child: Text('Dipinjam')),
+                    DropdownMenuItem(
+                        value: 'maintenance', child: Text('Maintenance')),
                   ],
                   onChanged: (value) {
                     setDialogState(() {
@@ -449,14 +527,41 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
             ),
             ElevatedButton(
               onPressed: () {
-                // TODO: Implement save logic
+                if (namaController.text.isEmpty ||
+                    kategoriController.text.isEmpty ||
+                    jumlahController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Semua field harus diisi'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                  return;
+                }
+
+                final jumlahTotal = int.tryParse(jumlahController.text) ?? 1;
+
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(isEdit ? 'Alat berhasil diupdate' : 'Alat berhasil ditambahkan'),
-                    backgroundColor: AppColors.success,
-                  ),
-                );
+
+                if (isEdit) {
+                  this.context.read<CrudAlatCubit>().updateAlat(
+                        idAlat: alat['id_alat'],
+                        namaAlat: namaController.text,
+                        kategori: kategoriController.text,
+                        kondisi: selectedKondisi,
+                        status: selectedStatus,
+                        jumlahTotal: jumlahTotal,
+                        jumlahTersedia: alat['jumlah_tersedia'],
+                      );
+                } else {
+                  this.context.read<CrudAlatCubit>().createAlat(
+                        namaAlat: namaController.text,
+                        kategori: kategoriController.text,
+                        kondisi: selectedKondisi,
+                        status: selectedStatus,
+                        jumlahTotal: jumlahTotal,
+                      );
+                }
               },
               child: Text(isEdit ? 'Update' : 'Tambah'),
             ),
@@ -469,25 +574,20 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
   void _showDeleteDialog(Map<String, dynamic> alat) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: const Text('Hapus Alat'),
-        content: Text('Apakah Anda yakin ingin menghapus "${alat['nama']}"?'),
+        content: Text(
+            'Apakah Anda yakin ingin menghapus "${alat['nama_alat']}"?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Batal'),
           ),
           ElevatedButton(
             onPressed: () {
-              // TODO: Implement delete logic
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Alat berhasil dihapus'),
-                  backgroundColor: AppColors.success,
-                ),
-              );
+              Navigator.pop(dialogContext);
+              context.read<CrudAlatCubit>().deleteAlat(alat['id_alat']);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
@@ -497,5 +597,11 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 }
