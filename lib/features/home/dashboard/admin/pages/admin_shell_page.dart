@@ -1,6 +1,9 @@
+// admin_shell_page.dart - UPDATE bagian provider
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
 import 'package:rentalify/features/home/dashboard/admin/admin_dashboard.dart';
+import 'package:rentalify/features/home/dashboard/admin/cubit/crud_user_cubit.dart';
 import 'package:rentalify/features/home/dashboard/admin/pages/crud_alat_page.dart';
 import 'package:rentalify/features/home/dashboard/admin/pages/crud_kategori_page.dart';
 import 'package:rentalify/features/home/dashboard/admin/pages/crud_peminjaman_page.dart';
@@ -20,27 +23,6 @@ class AdminShellPage extends StatefulWidget {
 class _AdminShellPageState extends State<AdminShellPage> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = [
-    AdminDashboard(
-      statistics: {
-        'totalAlat': 45,
-        'totalTersedia': 32,
-        'totalDipinjam': 10,
-        'terlambat': 3,
-        'totalPeminjaman': 156,
-        'pendingApproval': 5,
-        'activePeminjaman': 10,
-      },
-    ),
-    const CrudAlatPage(),
-    const CrudUserPage(),
-    const CrudKategoriPage(),
-    const CrudPeminjamanPage(),
-    const CrudPengembalianPage(),
-    const LaporanPage(),
-    const LogAktivitasPage(),
-  ];
-
   final List<String> _pageTitles = [
     'Dashboard Admin',
     'Kelola Alat',
@@ -51,6 +33,42 @@ class _AdminShellPageState extends State<AdminShellPage> {
     'Laporan',
     'Log Aktivitas',
   ];
+
+  Widget _buildPage(int index) {
+    switch (index) {
+      case 0:
+        return AdminDashboard(
+          statistics: {
+            'totalAlat': 45,
+            'totalTersedia': 32,
+            'totalDipinjam': 10,
+            'terlambat': 3,
+            'totalPeminjaman': 156,
+            'pendingApproval': 5,
+            'activePeminjaman': 10,
+          },
+        );
+      case 1:
+        return const CrudAlatPage();
+      case 2:
+        return BlocProvider(
+          create: (context) => CrudUserCubit(),
+          child: const CrudUserPage(),
+        );
+      case 3:
+        return const CrudKategoriPage();
+      case 4:
+        return const CrudPeminjamanPage();
+      case 5:
+        return const CrudPengembalianPage();
+      case 6:
+        return const LaporanPage();
+      case 7:
+        return const LogAktivitasPage();
+      default:
+        return const SizedBox();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,10 +87,7 @@ class _AdminShellPageState extends State<AdminShellPage> {
           });
         },
       ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
-      ),
+      body: _buildPage(_selectedIndex),
     );
   }
 }

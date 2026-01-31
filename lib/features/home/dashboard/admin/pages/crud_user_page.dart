@@ -1,5 +1,8 @@
+// crud_user_page.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
+import 'package:rentalify/features/home/dashboard/admin/cubit/crud_user_cubit.dart';
 
 class CrudUserPage extends StatefulWidget {
   const CrudUserPage({super.key});
@@ -12,87 +15,158 @@ class _CrudUserPageState extends State<CrudUserPage> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedRoleFilter = 'Semua';
 
-  // Dummy data
-  final List<Map<String, dynamic>> _userList = [
-    {
-      'id': '1',
-      'nama': 'John Doe',
-      'email': 'john@example.com',
-      'role': 'admin',
-      'created_at': '2024-01-15',
-    },
-    {
-      'id': '2',
-      'nama': 'Jane Smith',
-      'email': 'jane@example.com',
-      'role': 'petugas',
-      'created_at': '2024-01-20',
-    },
-    {
-      'id': '3',
-      'nama': 'Bob Wilson',
-      'email': 'bob@example.com',
-      'role': 'peminjam',
-      'created_at': '2024-02-01',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    context.read<CrudUserCubit>().loadUsers();
+  }
+
+  List<Map<String, dynamic>> _filterUsers(List<Map<String, dynamic>> users) {
+    return users.where((user) {
+      final matchesSearch = user['nama']
+              .toString()
+              .toLowerCase()
+              .contains(_searchController.text.toLowerCase()) ||
+          user['email']
+              .toString()
+              .toLowerCase()
+              .contains(_searchController.text.toLowerCase());
+
+      final matchesRole = _selectedRoleFilter == 'Semua' ||
+          user['role'].toString().toLowerCase() ==
+              _selectedRoleFilter.toLowerCase();
+
+      return matchesSearch && matchesRole;
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          // Search & Filter
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: AppColors.surface,
-            child: Column(
-              children: [
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Cari user...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() {});
-                            },
-                          )
-                        : null,
-                  ),
-                  onChanged: (value) => setState(() {}),
+      body: BlocConsumer<CrudUserCubit, CrudUserState>(
+        listener: (context, state) {
+          if (state is CrudUserSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppColors.success,
+              ),
+            );
+          } else if (state is CrudUserError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          }
+        },
+        builder: (context, state) {
+          return Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                color: AppColors.surface,
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Cari user...',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {});
+                                },
+                              )
+                            : null,
+                      ),
+                      onChanged: (value) => setState(() {}),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildFilterDropdown(
+                      label: 'Role',
+                      value: _selectedRoleFilter,
+                      items: ['Semua', 'Admin', 'Petugas', 'Peminjam'],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedRoleFilter = value!;
+                        });
+                      },
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                _buildFilterDropdown(
-                  label: 'Role',
-                  value: _selectedRoleFilter,
-                  items: ['Semua', 'Admin', 'Petugas', 'Peminjam'],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedRoleFilter = value!;
-                    });
+              ),
+              Expanded(
+                child: Builder(
+                  builder: (context) {
+                    if (state is CrudUserLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (state is CrudUserLoaded) {
+                      final filteredUsers = _filterUsers(state.users);
+
+                      if (filteredUsers.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.people_outline,
+                                  size: 64, color: AppColors.textTertiary),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Tidak ada user',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return RefreshIndicator(
+                        onRefresh: () => context.read<CrudUserCubit>().loadUsers(),
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: filteredUsers.length,
+                          itemBuilder: (context, index) {
+                            final user = filteredUsers[index];
+                            return _buildUserCard(user);
+                          },
+                        ),
+                      );
+                    }
+
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.people_outline,
+                              size: 64, color: AppColors.textTertiary),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Tidak ada user',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
                   },
                 ),
-              ],
-            ),
-          ),
-
-          // List
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _userList.length,
-              itemBuilder: (context, index) {
-                final user = _userList[index];
-                return _buildUserCard(user);
-              },
-            ),
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showUserDialog(),
@@ -135,6 +209,10 @@ class _CrudUserPageState extends State<CrudUserPage> {
   }
 
   Widget _buildUserCard(Map<String, dynamic> user) {
+    final createdAt = DateTime.parse(user['created_at']);
+    final formattedDate =
+        '${createdAt.day}/${createdAt.month}/${createdAt.year}';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -158,7 +236,7 @@ class _CrudUserPageState extends State<CrudUserPage> {
                       radius: 28,
                       backgroundColor: AppColors.primary.withOpacity(0.2),
                       child: Text(
-                        user['nama'][0].toUpperCase(),
+                        (user['nama'] ?? 'U')[0].toUpperCase(),
                         style: const TextStyle(
                           color: AppColors.primary,
                           fontSize: 24,
@@ -172,7 +250,7 @@ class _CrudUserPageState extends State<CrudUserPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            user['nama'],
+                            user['nama'] ?? 'No Name',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -181,7 +259,7 @@ class _CrudUserPageState extends State<CrudUserPage> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            user['email'],
+                            user['email'] ?? 'No Email',
                             style: const TextStyle(
                               fontSize: 14,
                               color: AppColors.textSecondary,
@@ -190,7 +268,7 @@ class _CrudUserPageState extends State<CrudUserPage> {
                         ],
                       ),
                     ),
-                    _buildRoleBadge(user['role']),
+                    _buildRoleBadge(user['role'] ?? 'peminjam'),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -208,7 +286,7 @@ class _CrudUserPageState extends State<CrudUserPage> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'Terdaftar: ${user['created_at']}',
+                          'Terdaftar: $formattedDate',
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.textTertiary,
@@ -252,8 +330,8 @@ class _CrudUserPageState extends State<CrudUserPage> {
     Color color;
     String text;
     IconData icon;
-    
-    switch (role) {
+
+    switch (role.toLowerCase()) {
       case 'admin':
         color = AppColors.error;
         text = 'Admin';
@@ -308,7 +386,7 @@ class _CrudUserPageState extends State<CrudUserPage> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: AppColors.surface,
           title: Text(isEdit ? 'Edit User' : 'Tambah User'),
@@ -327,9 +405,11 @@ class _CrudUserPageState extends State<CrudUserPage> {
                 TextField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
+                  enabled: !isEdit,
+                  decoration: InputDecoration(
                     labelText: 'Email',
-                    prefixIcon: Icon(Icons.email),
+                    prefixIcon: const Icon(Icons.email),
+                    helperText: isEdit ? 'Email tidak bisa diubah' : null,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -353,7 +433,8 @@ class _CrudUserPageState extends State<CrudUserPage> {
                   items: const [
                     DropdownMenuItem(value: 'admin', child: Text('Admin')),
                     DropdownMenuItem(value: 'petugas', child: Text('Petugas')),
-                    DropdownMenuItem(value: 'peminjam', child: Text('Peminjam')),
+                    DropdownMenuItem(
+                        value: 'peminjam', child: Text('Peminjam')),
                   ],
                   onChanged: (value) {
                     setDialogState(() {
@@ -371,14 +452,34 @@ class _CrudUserPageState extends State<CrudUserPage> {
             ),
             ElevatedButton(
               onPressed: () {
-                // TODO: Implement save logic
+                if (namaController.text.isEmpty ||
+                    emailController.text.isEmpty ||
+                    (!isEdit && passwordController.text.isEmpty)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Semua field harus diisi'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                  return;
+                }
+
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(isEdit ? 'User berhasil diupdate' : 'User berhasil ditambahkan'),
-                    backgroundColor: AppColors.success,
-                  ),
-                );
+
+                if (isEdit) {
+                  this.context.read<CrudUserCubit>().updateUser(
+                        userId: user['user_id'],
+                        nama: namaController.text,
+                        role: selectedRole,
+                      );
+                } else {
+                  this.context.read<CrudUserCubit>().createUser(
+                        nama: namaController.text,
+                        email: emailController.text,
+                        password: passwordController.text,
+                        role: selectedRole,
+                      );
+                }
               },
               child: Text(isEdit ? 'Update' : 'Tambah'),
             ),
@@ -391,25 +492,20 @@ class _CrudUserPageState extends State<CrudUserPage> {
   void _showDeleteDialog(Map<String, dynamic> user) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: const Text('Hapus User'),
-        content: Text('Apakah Anda yakin ingin menghapus user "${user['nama']}"?'),
+        content:
+            Text('Apakah Anda yakin ingin menghapus user "${user['nama']}"?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Batal'),
           ),
           ElevatedButton(
             onPressed: () {
-              // TODO: Implement delete logic
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('User berhasil dihapus'),
-                  backgroundColor: AppColors.success,
-                ),
-              );
+              Navigator.pop(dialogContext);
+              context.read<CrudUserCubit>().deleteUser(user['user_id']);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
@@ -419,5 +515,11 @@ class _CrudUserPageState extends State<CrudUserPage> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 }
