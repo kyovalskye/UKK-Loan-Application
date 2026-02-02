@@ -7,7 +7,8 @@ import 'package:rentalify/app/pages/main_shell_page.dart';
 import 'package:rentalify/features/modules/approval/cubit/approval_cubit.dart';
 import 'package:rentalify/features/modules/borrowing/cubit/borrowing_cubit.dart';
 import 'package:rentalify/features/modules/borrowing/cubit/borrowing_list_cubit.dart';
-import 'package:rentalify/features/home/dashboard/admin/cubit/crud_user_cubit.dart'; // TAMBAHKAN INI
+import 'package:rentalify/features/home/dashboard/admin/cubit/crud_user_cubit.dart';
+import 'package:rentalify/features/home/dashboard/admin/cubit/crud_alat_cubit.dart';
 import 'core/services/supabase_service.dart';
 import 'features/auth/cubit/auth_cubit.dart';
 import 'features/auth/cubit/auth_state.dart';
@@ -17,7 +18,7 @@ import 'features/home/cubit/home_cubit.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: "assets/.env");
 
   await SupabaseService().initialize(
     supabaseUrl: dotenv.env['SUPABASE_URL']!,
@@ -51,8 +52,11 @@ class MyApp extends StatelessWidget {
         BlocProvider(
           create: (context) => ApprovalCubit(SupabaseService()),
         ),
-        BlocProvider(  // TAMBAHKAN INI
+        BlocProvider(
           create: (context) => CrudUserCubit(),
+        ),
+        BlocProvider(  // TAMBAHKAN INI
+          create: (context) => CrudAlatCubit(),
         ),
       ],
       child: MaterialApp(

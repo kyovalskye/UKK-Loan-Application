@@ -1,8 +1,9 @@
-// admin_shell_page.dart - UPDATE bagian provider
+// admin_shell_page.dart (FIXED)
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
 import 'package:rentalify/features/home/dashboard/admin/admin_dashboard.dart';
+import 'package:rentalify/features/home/dashboard/admin/cubit/crud_kategori_cubit.dart';
 import 'package:rentalify/features/home/dashboard/admin/cubit/crud_user_cubit.dart';
 import 'package:rentalify/features/home/dashboard/admin/pages/crud_alat_page.dart';
 import 'package:rentalify/features/home/dashboard/admin/pages/crud_kategori_page.dart';
@@ -51,10 +52,7 @@ class _AdminShellPageState extends State<AdminShellPage> {
       case 1:
         return const CrudAlatPage();
       case 2:
-        return BlocProvider(
-          create: (context) => CrudUserCubit(),
-          child: const CrudUserPage(),
-        );
+        return const CrudUserPage();
       case 3:
         return const CrudKategoriPage();
       case 4:
@@ -72,22 +70,32 @@ class _AdminShellPageState extends State<AdminShellPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_pageTitles[_selectedIndex]),
-        elevation: 0,
-        backgroundColor: AppColors.surface,
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) => CrudKategoriCubit()..fetchKategori(),
+        ),
+        BlocProvider(
+          create: (_) => CrudUserCubit(),
+        ),
+      ],
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_pageTitles[_selectedIndex]),
+          elevation: 0,
+          backgroundColor: AppColors.surface,
+          iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        ),
+        drawer: AdminDrawer(
+          selectedIndex: _selectedIndex,
+          onItemSelected: (index) {
+            setState(() {
+              _selectedIndex = index;
+            });
+          },
+        ),
+        body: _buildPage(_selectedIndex),
       ),
-      drawer: AdminDrawer(
-        selectedIndex: _selectedIndex,
-        onItemSelected: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-      ),
-      body: _buildPage(_selectedIndex),
     );
   }
 }

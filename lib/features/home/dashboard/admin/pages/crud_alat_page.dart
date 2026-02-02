@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
 import 'package:rentalify/features/home/dashboard/admin/cubit/crud_alat_cubit.dart';
+import 'dart:typed_data';
+import 'package:image_picker_web/image_picker_web.dart';
 
 class CrudAlatPage extends StatefulWidget {
   const CrudAlatPage({super.key});
@@ -23,11 +25,11 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
 
   List<Map<String, dynamic>> _filterAlat(List<Map<String, dynamic>> alatList) {
     return context.read<CrudAlatCubit>().filterAlat(
-          alatList: alatList,
-          status: _selectedFilter,
-          kategori: _selectedKategori,
-          searchQuery: _searchController.text,
-        );
+      alatList: alatList,
+      status: _selectedFilter,
+      kategori: _selectedKategori,
+      searchQuery: _searchController.text,
+    );
   }
 
   @override
@@ -91,7 +93,7 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                               'Semua',
                               'Tersedia',
                               'Dipinjam',
-                              'Maintenance'
+                              'Maintenance',
                             ],
                             onChanged: (value) {
                               setState(() {
@@ -109,7 +111,7 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                               'Semua',
                               'Diagnostic Tools',
                               'Hand Tools',
-                              'Power Tools'
+                              'Power Tools',
                             ],
                             onChanged: (value) {
                               setState(() {
@@ -140,8 +142,11 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.inventory_2_outlined,
-                                  size: 64, color: AppColors.textTertiary),
+                              Icon(
+                                Icons.inventory_2_outlined,
+                                size: 64,
+                                color: AppColors.textTertiary,
+                              ),
                               const SizedBox(height: 16),
                               Text(
                                 'Tidak ada alat',
@@ -173,8 +178,11 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.inventory_2_outlined,
-                              size: 64, color: AppColors.textTertiary),
+                          Icon(
+                            Icons.inventory_2_outlined,
+                            size: 64,
+                            color: AppColors.textTertiary,
+                          ),
                           const SizedBox(height: 16),
                           Text(
                             'Tidak ada alat',
@@ -222,10 +230,7 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
           dropdownColor: AppColors.surface,
           style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
           items: items.map((item) {
-            return DropdownMenuItem(
-              value: item,
-              child: Text(item),
-            );
+            return DropdownMenuItem(value: item, child: Text(item));
           }).toList(),
           onChanged: onChanged,
         ),
@@ -253,18 +258,33 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
               children: [
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.inventory_2,
-                        color: AppColors.primary,
-                        size: 24,
-                      ),
-                    ),
+                   Container(
+  width: 48,
+  height: 48,
+  decoration: BoxDecoration(
+    color: AppColors.primary.withOpacity(0.2),
+    borderRadius: BorderRadius.circular(8),
+  ),
+  clipBehavior: Clip.hardEdge,
+  child: alat['foto_alat'] != null
+      ? Image.network(
+          alat['foto_alat'],
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) {
+            return const Icon(
+              Icons.inventory_2,
+              color: AppColors.primary,
+              size: 24,
+            );
+          },
+        )
+      : const Icon(
+          Icons.inventory_2,
+          color: AppColors.primary,
+          size: 24,
+        ),
+),
+
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -429,11 +449,15 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
   }
 
   void _showAlatDialog({Map<String, dynamic>? alat}) {
+    Uint8List? imageBytes;
+    String? imageName;
     final isEdit = alat != null;
-    final namaController =
-        TextEditingController(text: alat?['nama_alat'] ?? '');
-    final kategoriController =
-        TextEditingController(text: alat?['kategori'] ?? '');
+    final namaController = TextEditingController(
+      text: alat?['nama_alat'] ?? '',
+    );
+    final kategoriController = TextEditingController(
+      text: alat?['kategori'] ?? '',
+    );
     final jumlahController = TextEditingController(
       text: alat?['jumlah_total']?.toString() ?? '1',
     );
@@ -450,6 +474,48 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                GestureDetector(
+                  onTap: () async {
+                    final bytes = await ImagePickerWeb.getImageAsBytes();
+                    if (bytes != null) {
+                      setDialogState(() {
+                        imageBytes = bytes;
+                        imageName = 'alat.png';
+                      });
+                    }
+                  },
+                  child: Container(
+                    height: 180,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceLight,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: imageBytes != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.memory(imageBytes!, fit: BoxFit.cover),
+                          )
+                        : alat?['foto_alat'] != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              alat!['foto_alat'],
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.image, size: 40),
+                              SizedBox(height: 8),
+                              Text('Upload Foto Alat'),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 TextField(
                   controller: namaController,
                   decoration: const InputDecoration(
@@ -485,9 +551,13 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                   items: const [
                     DropdownMenuItem(value: 'baik', child: Text('Baik')),
                     DropdownMenuItem(
-                        value: 'rusak_ringan', child: Text('Rusak Ringan')),
+                      value: 'rusak_ringan',
+                      child: Text('Rusak Ringan'),
+                    ),
                     DropdownMenuItem(
-                        value: 'rusak_berat', child: Text('Rusak Berat')),
+                      value: 'rusak_berat',
+                      child: Text('Rusak Berat'),
+                    ),
                   ],
                   onChanged: (value) {
                     setDialogState(() {
@@ -505,11 +575,17 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                   dropdownColor: AppColors.surface,
                   items: const [
                     DropdownMenuItem(
-                        value: 'tersedia', child: Text('Tersedia')),
+                      value: 'tersedia',
+                      child: Text('Tersedia'),
+                    ),
                     DropdownMenuItem(
-                        value: 'dipinjam', child: Text('Dipinjam')),
+                      value: 'dipinjam',
+                      child: Text('Dipinjam'),
+                    ),
                     DropdownMenuItem(
-                        value: 'maintenance', child: Text('Maintenance')),
+                      value: 'maintenance',
+                      child: Text('Maintenance'),
+                    ),
                   ],
                   onChanged: (value) {
                     setDialogState(() {
@@ -545,22 +621,26 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
 
                 if (isEdit) {
                   this.context.read<CrudAlatCubit>().updateAlat(
-                        idAlat: alat['id_alat'],
-                        namaAlat: namaController.text,
-                        kategori: kategoriController.text,
-                        kondisi: selectedKondisi,
-                        status: selectedStatus,
-                        jumlahTotal: jumlahTotal,
-                        jumlahTersedia: alat['jumlah_tersedia'],
-                      );
+                    idAlat: alat['id_alat'],
+                    namaAlat: namaController.text,
+                    kategori: kategoriController.text,
+                    kondisi: selectedKondisi,
+                    status: selectedStatus,
+                    jumlahTotal: jumlahTotal,
+                    jumlahTersedia: alat['jumlah_tersedia'],
+                    fotoBytes: imageBytes,
+                    fotoName: imageName,
+                  );
                 } else {
                   this.context.read<CrudAlatCubit>().createAlat(
-                        namaAlat: namaController.text,
-                        kategori: kategoriController.text,
-                        kondisi: selectedKondisi,
-                        status: selectedStatus,
-                        jumlahTotal: jumlahTotal,
-                      );
+                    namaAlat: namaController.text,
+                    kategori: kategoriController.text,
+                    kondisi: selectedKondisi,
+                    status: selectedStatus,
+                    jumlahTotal: jumlahTotal,
+                    fotoBytes: imageBytes,
+                    fotoName: imageName,
+                  );
                 }
               },
               child: Text(isEdit ? 'Update' : 'Tambah'),
@@ -578,7 +658,8 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
         backgroundColor: AppColors.surface,
         title: const Text('Hapus Alat'),
         content: Text(
-            'Apakah Anda yakin ingin menghapus "${alat['nama_alat']}"?'),
+          'Apakah Anda yakin ingin menghapus "${alat['nama_alat']}"?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
@@ -589,9 +670,7 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
               Navigator.pop(dialogContext);
               context.read<CrudAlatCubit>().deleteAlat(alat['id_alat']);
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('Hapus'),
           ),
         ],

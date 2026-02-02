@@ -1,6 +1,7 @@
-// crud_alat_cubit.dart
+import 'dart:typed_data';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rentalify/core/services/alat_image_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 part 'crud_alat_state.dart';
@@ -13,14 +14,14 @@ class CrudAlatCubit extends Cubit<CrudAlatState> {
   Future<void> loadAlat() async {
     emit(CrudAlatLoading());
     try {
-      final response = await _supabase
+      final res = await _supabase
           .from('alat')
           .select()
           .order('created_at', ascending: false);
 
-      emit(CrudAlatLoaded(List<Map<String, dynamic>>.from(response)));
+      emit(CrudAlatLoaded(List<Map<String, dynamic>>.from(res)));
     } catch (e) {
-      emit(CrudAlatError('Error loading alat: ${e.toString()}'));
+      emit(CrudAlatError(e.toString()));
     }
   }
 
@@ -30,40 +31,33 @@ class CrudAlatCubit extends Cubit<CrudAlatState> {
     required String kondisi,
     required String status,
     required int jumlahTotal,
-    String? fotoAlat,
+    Uint8List? fotoBytes,
+    String? fotoName,
   }) async {
     try {
-      // Validasi input
-      if (namaAlat.trim().isEmpty) {
-        emit(const CrudAlatError('Nama alat tidak boleh kosong'));
-        return;
+      String? fotoUrl;
+
+      if (fotoBytes != null && fotoName != null) {
+        fotoUrl = await AlatImageService.upload(
+          bytes: fotoBytes,
+          fileName: fotoName,
+        );
       }
 
-      if (kategori.trim().isEmpty) {
-        emit(const CrudAlatError('Kategori tidak boleh kosong'));
-        return;
-      }
-
-      if (jumlahTotal < 1) {
-        emit(const CrudAlatError('Jumlah total minimal 1'));
-        return;
-      }
-
-      // Insert ke database
       await _supabase.from('alat').insert({
         'nama_alat': namaAlat.trim(),
         'kategori': kategori.trim(),
         'kondisi': kondisi,
         'status': status,
         'jumlah_total': jumlahTotal,
-        'jumlah_tersedia': jumlahTotal, // Default sama dengan jumlah total
-        'foto_alat': fotoAlat,
+        'jumlah_tersedia': jumlahTotal,
+        'foto_alat': fotoUrl,
       });
 
       emit(const CrudAlatSuccess('Alat berhasil ditambahkan'));
       await loadAlat();
     } catch (e) {
-      emit(CrudAlatError('Error creating alat: ${e.toString()}'));
+      emit(CrudAlatError(e.toString()));
     }
   }
 
@@ -75,79 +69,60 @@ class CrudAlatCubit extends Cubit<CrudAlatState> {
     required String status,
     required int jumlahTotal,
     int? jumlahTersedia,
-    String? fotoAlat,
+    Uint8List? fotoBytes,
+    String? fotoName,
   }) async {
     try {
-      // Validasi input
-      if (namaAlat.trim().isEmpty) {
-        emit(const CrudAlatError('Nama alat tidak boleh kosong'));
-        return;
+      String? fotoUrl;
+
+      if (fotoBytes != null && fotoName != null) {
+        fotoUrl = await AlatImageService.upload(
+          bytes: fotoBytes,
+          fileName: fotoName,
+        );
       }
 
-      if (kategori.trim().isEmpty) {
-        emit(const CrudAlatError('Kategori tidak boleh kosong'));
-        return;
-      }
-
-      if (jumlahTotal < 1) {
-        emit(const CrudAlatError('Jumlah total minimal 1'));
-        return;
-      }
-
-      // Jika jumlah tersedia tidak di-set, gunakan nilai dari jumlah total
-      final tersedia = jumlahTersedia ?? jumlahTotal;
-
-      // Validasi jumlah tersedia tidak melebihi total
-      if (tersedia > jumlahTotal) {
-        emit(const CrudAlatError('Jumlah tersedia tidak boleh melebihi jumlah total'));
-        return;
-      }
-
-      // Update database
       await _supabase.from('alat').update({
         'nama_alat': namaAlat.trim(),
         'kategori': kategori.trim(),
         'kondisi': kondisi,
         'status': status,
         'jumlah_total': jumlahTotal,
-        'jumlah_tersedia': tersedia,
-        'foto_alat': fotoAlat,
+        'jumlah_tersedia': jumlahTersedia ?? jumlahTotal,
+        if (fotoUrl != null) 'foto_alat': fotoUrl,
         'updated_at': DateTime.now().toIso8601String(),
       }).eq('id_alat', idAlat);
 
       emit(const CrudAlatSuccess('Alat berhasil diupdate'));
       await loadAlat();
     } catch (e) {
-      emit(CrudAlatError('Error updating alat: ${e.toString()}'));
+      emit(CrudAlatError(e.toString()));
     }
   }
 
   Future<void> deleteAlat(int idAlat) async {
     try {
-      // Cek apakah alat sedang dipinjam
-    final peminjaman = await _supabase
-        .from('peminjaman')
-        .select()
-        .eq('id_alat', idAlat)
-        .filter('status_peminjaman', 'in', '("diajukan","disetujui","dipinjam")');
+      final peminjaman = await _supabase
+          .from('peminjaman')
+          .select()
+          .eq('id_alat', idAlat)
+          .filter('status_peminjaman',
+              'in', '("diajukan","disetujui","dipinjam")');
 
       if (peminjaman.isNotEmpty) {
         emit(const CrudAlatError(
-            'Tidak dapat menghapus alat yang sedang dalam peminjaman'));
+            'Tidak dapat menghapus alat yang sedang dipinjam'));
         return;
       }
 
-      // Delete dari database
       await _supabase.from('alat').delete().eq('id_alat', idAlat);
-
       emit(const CrudAlatSuccess('Alat berhasil dihapus'));
       await loadAlat();
     } catch (e) {
-      emit(CrudAlatError('Error deleting alat: ${e.toString()}'));
+      emit(CrudAlatError(e.toString()));
     }
   }
 
-  // Method untuk filter alat berdasarkan status dan kategori
   List<Map<String, dynamic>> filterAlat({
     required List<Map<String, dynamic>> alatList,
     String? status,
@@ -155,29 +130,21 @@ class CrudAlatCubit extends Cubit<CrudAlatState> {
     String? searchQuery,
   }) {
     return alatList.where((alat) {
-      // Filter search
-      final matchesSearch = searchQuery == null ||
+      final search = searchQuery == null ||
           searchQuery.isEmpty ||
           alat['nama_alat']
               .toString()
               .toLowerCase()
-              .contains(searchQuery.toLowerCase()) ||
-          alat['kategori']
-              .toString()
-              .toLowerCase()
               .contains(searchQuery.toLowerCase());
 
-      // Filter status
-      final matchesStatus = status == null ||
+      final st = status == null ||
           status == 'Semua' ||
-          alat['status'].toString().toLowerCase() == status.toLowerCase();
+          alat['status'] == status.toLowerCase();
 
-      // Filter kategori
-      final matchesKategori = kategori == null ||
-          kategori == 'Semua' ||
-          alat['kategori'].toString() == kategori;
+      final kat =
+          kategori == null || kategori == 'Semua' || alat['kategori'] == kategori;
 
-      return matchesSearch && matchesStatus && matchesKategori;
+      return search && st && kat;
     }).toList();
   }
 }
