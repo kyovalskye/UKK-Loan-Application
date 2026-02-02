@@ -1,4 +1,5 @@
 // crud_user_cubit.dart
+import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,20 +8,55 @@ part 'crud_user_state.dart';
 
 class CrudUserCubit extends Cubit<CrudUserState> {
   final _supabase = Supabase.instance.client;
+  RealtimeChannel? _realtimeChannel;
+  StreamSubscription<List<Map<String, dynamic>>>? _userSubscription;
 
-  CrudUserCubit() : super(CrudUserInitial());
+  CrudUserCubit() : super(CrudUserInitial()) {
+    _initRealtimeWithStream();
+  }
+
+  void _initRealtimeWithStream() {
+    // Gunakan stream untuk auto-update realtime
+    _userSubscription = _supabase
+        .from('users')
+        .stream(primaryKey: ['user_id'])
+        .order('created_at', ascending: false)
+        .listen(
+          (data) {
+            if (!isClosed) {
+              print('Stream data received: ${data.length} users');
+              emit(CrudUserLoaded(List<Map<String, dynamic>>.from(data)));
+            }
+          },
+          onError: (error) {
+            if (!isClosed) {
+              print('Stream error: $error');
+              emit(CrudUserError('Error: $error'));
+            }
+          },
+        );
+  }
 
   Future<void> loadUsers() async {
-    emit(CrudUserLoading());
     try {
+      // Tampilkan loading hanya jika belum ada data
+      if (state is CrudUserInitial) {
+        emit(CrudUserLoading());
+      }
+
       final response = await _supabase
           .from('users')
           .select()
           .order('created_at', ascending: false);
 
-      emit(CrudUserLoaded(List<Map<String, dynamic>>.from(response)));
+      if (!isClosed) {
+        emit(CrudUserLoaded(List<Map<String, dynamic>>.from(response)));
+      }
     } catch (e) {
-      emit(CrudUserError('Error loading users: $e'));
+      if (!isClosed) {
+        print('Load users error: $e');
+        emit(CrudUserError('Error loading users: $e'));
+      }
     }
   }
 
@@ -29,6 +65,8 @@ class CrudUserCubit extends Cubit<CrudUserState> {
     required String email,
     required String password,
     required String role,
+    String? nomorHp,
+    String? alamat,
   }) async {
     try {
       // Validasi input
@@ -36,41 +74,85 @@ class CrudUserCubit extends Cubit<CrudUserState> {
         emit(const CrudUserError('Nama tidak boleh kosong'));
         return;
       }
-      
-      if (email.trim().isEmpty || !email.contains('@')) {
-        emit(const CrudUserError('Email tidak valid'));
+      if (email.trim().isEmpty) {
+        emit(const CrudUserError('Email tidak boleh kosong'));
         return;
       }
-      
+      if (password.isEmpty) {
+        emit(const CrudUserError('Password tidak boleh kosong'));
+        return;
+      }
       if (password.length < 6) {
         emit(const CrudUserError('Password minimal 6 karakter'));
         return;
       }
 
-      // Panggil RPC function
-      final response = await _supabase.rpc('admin_create_user', params: {
-        'p_email': email.trim(),
-        'p_password': password,
-        'p_nama': nama.trim(),
-        'p_role': role.toLowerCase(),
-      });
+      // Validasi email format
+      final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+      if (!emailRegex.hasMatch(email.trim())) {
+        emit(const CrudUserError('Format email tidak valid'));
+        return;
+      }
 
-      // Parse response
-      if (response != null && response is Map) {
-        if (response['success'] == true) {
-          emit(const CrudUserSuccess('User berhasil ditambahkan'));
-          await loadUsers();
+      // Cek duplikat email
+      final existingUser = await _supabase
+          .from('users')
+          .select('email')
+          .eq('email', email.trim())
+          .maybeSingle();
+
+      if (existingUser != null) {
+        emit(const CrudUserError('Email sudah terdaftar'));
+        return;
+      }
+
+      // Create user - trigger akan otomatis insert ke public.users
+      final authResponse = await _supabase.auth.signUp(
+        email: email.trim(),
+        password: password,
+        data: {
+          'nama': nama.trim(),
+          'role': role.toLowerCase(),
+          'nomor_hp': nomorHp?.trim(),
+          'alamat': alamat?.trim(),
+        },
+      );
+
+      if (authResponse.user == null) {
+        emit(const CrudUserError('Gagal membuat user'));
+        return;
+      }
+
+      // Emit success - stream akan otomatis update
+      if (!isClosed) {
+        emit(const CrudUserSuccess('User berhasil ditambahkan'));
+      }
+    } on AuthException catch (e) {
+      if (!isClosed) {
+        if (e.message.contains('already registered') ||
+            e.message.contains('already exists') ||
+            e.message.contains('User already registered')) {
+          emit(const CrudUserError('Email sudah terdaftar'));
+        } else if (e.message.contains('Invalid email')) {
+          emit(const CrudUserError('Format email tidak valid'));
+        } else if (e.message.contains('Password')) {
+          emit(const CrudUserError('Password tidak valid (min 6 karakter)'));
         } else {
-          emit(CrudUserError(response['message'] ?? 'Gagal membuat user'));
+          emit(CrudUserError('Error: ${e.message}'));
         }
-      } else {
-        emit(const CrudUserError('Response tidak valid dari server'));
+      }
+    } on PostgrestException catch (e) {
+      if (!isClosed) {
+        if (e.message.contains('duplicate key') ||
+            e.message.contains('unique constraint')) {
+          emit(const CrudUserError('Email sudah terdaftar'));
+        } else {
+          emit(CrudUserError('Error database: ${e.message}'));
+        }
       }
     } catch (e) {
-      if (e.toString().contains('already exists')) {
-        emit(const CrudUserError('Email sudah terdaftar'));
-      } else {
-        emit(CrudUserError('Error creating user: ${e.toString()}'));
+      if (!isClosed) {
+        emit(CrudUserError('Error: ${e.toString()}'));
       }
     }
   }
@@ -79,9 +161,10 @@ class CrudUserCubit extends Cubit<CrudUserState> {
     required String userId,
     required String nama,
     required String role,
+    String? nomorHp,
+    String? alamat,
   }) async {
     try {
-      // Validasi input
       if (nama.trim().isEmpty) {
         emit(const CrudUserError('Nama tidak boleh kosong'));
         return;
@@ -91,21 +174,29 @@ class CrudUserCubit extends Cubit<CrudUserState> {
         'p_user_id': userId,
         'p_nama': nama.trim(),
         'p_role': role.toLowerCase(),
+        'p_nomor_hp': nomorHp?.trim(),
+        'p_alamat': alamat?.trim(),
       });
 
-      // Parse response
       if (response != null && response is Map) {
         if (response['success'] == true) {
-          emit(const CrudUserSuccess('User berhasil diupdate'));
-          await loadUsers();
+          if (!isClosed) {
+            emit(const CrudUserSuccess('User berhasil diupdate'));
+          }
         } else {
-          emit(CrudUserError(response['message'] ?? 'Gagal update user'));
+          if (!isClosed) {
+            emit(CrudUserError(response['message'] ?? 'Gagal update user'));
+          }
         }
       } else {
-        emit(const CrudUserError('Response tidak valid dari server'));
+        if (!isClosed) {
+          emit(const CrudUserError('Response tidak valid dari server'));
+        }
       }
     } catch (e) {
-      emit(CrudUserError('Error updating user: ${e.toString()}'));
+      if (!isClosed) {
+        emit(CrudUserError('Error: ${e.toString()}'));
+      }
     }
   }
 
@@ -115,19 +206,33 @@ class CrudUserCubit extends Cubit<CrudUserState> {
         'p_user_id': userId,
       });
 
-      // Parse response
-      if (response != null && response is Map) {
-        if (response['success'] == true) {
+      if (response == null || response is! Map) {
+        if (!isClosed) {
+          emit(const CrudUserError('Response tidak valid dari server'));
+        }
+        return;
+      }
+
+      if (response['success'] == true) {
+        if (!isClosed) {
           emit(const CrudUserSuccess('User berhasil dihapus'));
-          await loadUsers();
-        } else {
-          emit(CrudUserError(response['message'] ?? 'Gagal menghapus user'));
         }
       } else {
-        emit(const CrudUserError('Response tidak valid dari server'));
+        if (!isClosed) {
+          emit(CrudUserError(response['message'] ?? 'Gagal menghapus user'));
+        }
       }
     } catch (e) {
-      emit(CrudUserError('Error deleting user: ${e.toString()}'));
+      if (!isClosed) {
+        emit(CrudUserError('Error: ${e.toString()}'));
+      }
     }
+  }
+
+  @override
+  Future<void> close() {
+    _userSubscription?.cancel();
+    _realtimeChannel?.unsubscribe();
+    return super.close();
   }
 }

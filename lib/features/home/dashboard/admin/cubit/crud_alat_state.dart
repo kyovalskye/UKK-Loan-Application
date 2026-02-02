@@ -1,4 +1,3 @@
-// crud_alat_state.dart
 part of 'crud_alat_cubit.dart';
 
 abstract class CrudAlatState extends Equatable {
@@ -14,11 +13,15 @@ class CrudAlatLoading extends CrudAlatState {}
 
 class CrudAlatLoaded extends CrudAlatState {
   final List<Map<String, dynamic>> alatList;
+  final List<Map<String, dynamic>> kategoriList;
 
-  const CrudAlatLoaded(this.alatList);
+  const CrudAlatLoaded(
+    this.alatList, {
+    this.kategoriList = const [],
+  });
 
   @override
-  List<Object?> get props => [alatList];
+  List<Object?> get props => [alatList, kategoriList];
 }
 
 class CrudAlatError extends CrudAlatState {

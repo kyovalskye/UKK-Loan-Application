@@ -18,7 +18,8 @@ class _CrudUserPageState extends State<CrudUserPage> {
   @override
   void initState() {
     super.initState();
-    context.read<CrudUserCubit>().loadUsers();
+    // JANGAN PANGGIL loadUsers() - biarkan stream yang handle
+    // Stream sudah otomatis fetch data saat cubit dibuat
   }
 
   List<Map<String, dynamic>> _filterUsers(List<Map<String, dynamic>> users) {
@@ -51,6 +52,8 @@ class _CrudUserPageState extends State<CrudUserPage> {
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: AppColors.success,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 2),
               ),
             );
           } else if (state is CrudUserError) {
@@ -58,6 +61,8 @@ class _CrudUserPageState extends State<CrudUserPage> {
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: AppColors.error,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 3),
               ),
             );
           }
@@ -104,7 +109,8 @@ class _CrudUserPageState extends State<CrudUserPage> {
               Expanded(
                 child: Builder(
                   builder: (context) {
-                    if (state is CrudUserLoading) {
+                    // Loading hanya tampil saat initial state
+                    if (state is CrudUserLoading || state is CrudUserInitial) {
                       return const Center(child: CircularProgressIndicator());
                     }
 
@@ -116,11 +122,17 @@ class _CrudUserPageState extends State<CrudUserPage> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.people_outline,
-                                  size: 64, color: AppColors.textTertiary),
+                              Icon(
+                                Icons.people_outline,
+                                size: 64,
+                                color: AppColors.textTertiary,
+                              ),
                               const SizedBox(height: 16),
                               Text(
-                                'Tidak ada user',
+                                _searchController.text.isNotEmpty ||
+                                        _selectedRoleFilter != 'Semua'
+                                    ? 'Tidak ada user yang sesuai filter'
+                                    : 'Tidak ada user',
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: AppColors.textSecondary,
@@ -132,7 +144,8 @@ class _CrudUserPageState extends State<CrudUserPage> {
                       }
 
                       return RefreshIndicator(
-                        onRefresh: () => context.read<CrudUserCubit>().loadUsers(),
+                        onRefresh: () =>
+                            context.read<CrudUserCubit>().loadUsers(),
                         child: ListView.builder(
                           padding: const EdgeInsets.all(16),
                           itemCount: filteredUsers.length,
@@ -144,12 +157,47 @@ class _CrudUserPageState extends State<CrudUserPage> {
                       );
                     }
 
+                    // Error state
+                    if (state is CrudUserError) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: 64,
+                              color: AppColors.error,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              state.message,
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: AppColors.textSecondary,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () {
+                                context.read<CrudUserCubit>().loadUsers();
+                              },
+                              child: const Text('Coba Lagi'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
                     return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.people_outline,
-                              size: 64, color: AppColors.textTertiary),
+                          Icon(
+                            Icons.people_outline,
+                            size: 64,
+                            color: AppColors.textTertiary,
+                          ),
                           const SizedBox(height: 16),
                           Text(
                             'Tidak ada user',
@@ -197,10 +245,7 @@ class _CrudUserPageState extends State<CrudUserPage> {
           dropdownColor: AppColors.surface,
           style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
           items: items.map((item) {
-            return DropdownMenuItem(
-              value: item,
-              child: Text(item),
-            );
+            return DropdownMenuItem(value: item, child: Text(item));
           }).toList(),
           onChanged: onChanged,
         ),
@@ -271,6 +316,51 @@ class _CrudUserPageState extends State<CrudUserPage> {
                     _buildRoleBadge(user['role'] ?? 'peminjam'),
                   ],
                 ),
+                if (user['nomor_hp'] != null || user['alamat'] != null) ...[
+                  const SizedBox(height: 12),
+                  if (user['nomor_hp'] != null)
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.phone,
+                          size: 14,
+                          color: AppColors.textTertiary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          user['nomor_hp'],
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textTertiary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (user['alamat'] != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on,
+                          size: 14,
+                          color: AppColors.textTertiary,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            user['alamat'],
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textTertiary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
                 const SizedBox(height: 12),
                 const Divider(color: AppColors.border),
                 const SizedBox(height: 8),
@@ -381,6 +471,9 @@ class _CrudUserPageState extends State<CrudUserPage> {
     final isEdit = user != null;
     final namaController = TextEditingController(text: user?['nama'] ?? '');
     final emailController = TextEditingController(text: user?['email'] ?? '');
+    final nomorHpController =
+        TextEditingController(text: user?['nomor_hp'] ?? '');
+    final alamatController = TextEditingController(text: user?['alamat'] ?? '');
     final passwordController = TextEditingController();
     String selectedRole = user?['role'] ?? 'peminjam';
 
@@ -403,6 +496,24 @@ class _CrudUserPageState extends State<CrudUserPage> {
                 ),
                 const SizedBox(height: 16),
                 TextField(
+                  controller: nomorHpController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Nomor HP',
+                    prefixIcon: Icon(Icons.phone),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: alamatController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Alamat',
+                    prefixIcon: Icon(Icons.location_on),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
                   enabled: !isEdit,
@@ -413,7 +524,7 @@ class _CrudUserPageState extends State<CrudUserPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                if (!isEdit)
+                if (!isEdit) ...[
                   TextField(
                     controller: passwordController,
                     obscureText: true,
@@ -422,7 +533,8 @@ class _CrudUserPageState extends State<CrudUserPage> {
                       prefixIcon: Icon(Icons.lock),
                     ),
                   ),
-                if (!isEdit) const SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                ],
                 DropdownButtonFormField<String>(
                   value: selectedRole,
                   decoration: const InputDecoration(
@@ -434,7 +546,9 @@ class _CrudUserPageState extends State<CrudUserPage> {
                     DropdownMenuItem(value: 'admin', child: Text('Admin')),
                     DropdownMenuItem(value: 'petugas', child: Text('Petugas')),
                     DropdownMenuItem(
-                        value: 'peminjam', child: Text('Peminjam')),
+                      value: 'peminjam',
+                      child: Text('Peminjam'),
+                    ),
                   ],
                   onChanged: (value) {
                     setDialogState(() {
@@ -457,7 +571,7 @@ class _CrudUserPageState extends State<CrudUserPage> {
                     (!isEdit && passwordController.text.isEmpty)) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Semua field harus diisi'),
+                      content: Text('Nama, Email, dan Password harus diisi'),
                       backgroundColor: AppColors.error,
                     ),
                   );
@@ -471,6 +585,12 @@ class _CrudUserPageState extends State<CrudUserPage> {
                         userId: user['user_id'],
                         nama: namaController.text,
                         role: selectedRole,
+                        nomorHp: nomorHpController.text.isNotEmpty
+                            ? nomorHpController.text
+                            : null,
+                        alamat: alamatController.text.isNotEmpty
+                            ? alamatController.text
+                            : null,
                       );
                 } else {
                   this.context.read<CrudUserCubit>().createUser(
@@ -478,6 +598,12 @@ class _CrudUserPageState extends State<CrudUserPage> {
                         email: emailController.text,
                         password: passwordController.text,
                         role: selectedRole,
+                        nomorHp: nomorHpController.text.isNotEmpty
+                            ? nomorHpController.text
+                            : null,
+                        alamat: alamatController.text.isNotEmpty
+                            ? alamatController.text
+                            : null,
                       );
                 }
               },
@@ -495,8 +621,9 @@ class _CrudUserPageState extends State<CrudUserPage> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: const Text('Hapus User'),
-        content:
-            Text('Apakah Anda yakin ingin menghapus user "${user['nama']}"?'),
+        content: Text(
+          'Apakah Anda yakin ingin menghapus user "${user['nama']}"?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
@@ -507,9 +634,7 @@ class _CrudUserPageState extends State<CrudUserPage> {
               Navigator.pop(dialogContext);
               context.read<CrudUserCubit>().deleteUser(user['user_id']);
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('Hapus'),
           ),
         ],

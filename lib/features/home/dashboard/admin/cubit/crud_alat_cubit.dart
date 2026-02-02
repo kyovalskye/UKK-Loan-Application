@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,26 +9,103 @@ part 'crud_alat_state.dart';
 
 class CrudAlatCubit extends Cubit<CrudAlatState> {
   final _supabase = Supabase.instance.client;
+  RealtimeChannel? _alatChannel;
+  RealtimeChannel? _kategoriChannel;
+  Timer? _debounceTimer;
 
-  CrudAlatCubit() : super(CrudAlatInitial());
+  CrudAlatCubit() : super(CrudAlatInitial()) {
+    _initRealtimeSubscription();
+    loadAlat();
+  }
 
+  void _initRealtimeSubscription() {
+    // Subscribe to alat table changes
+    _alatChannel = _supabase
+        .channel('alat-changes')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'alat',
+          callback: (payload) {
+            // Debounce untuk menghindari multiple refresh
+            _debounceTimer?.cancel();
+            _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+              _silentLoadAlat();
+            });
+          },
+        )
+        .subscribe();
+
+    // Subscribe to kategori table changes
+    _kategoriChannel = _supabase
+        .channel('kategori-changes')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'kategori',
+          callback: (payload) {
+            _debounceTimer?.cancel();
+            _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+              _silentLoadAlat();
+            });
+          },
+        )
+        .subscribe();
+  }
+
+  // Initial load dengan loading state
   Future<void> loadAlat() async {
     emit(CrudAlatLoading());
+
     try {
-      final res = await _supabase
+      // Load both alat and kategori
+      final alatRes = await _supabase
           .from('alat')
-          .select()
+          .select('*, kategori(*)')
           .order('created_at', ascending: false);
 
-      emit(CrudAlatLoaded(List<Map<String, dynamic>>.from(res)));
+      final kategoriRes = await _supabase
+          .from('kategori')
+          .select()
+          .order('nama', ascending: true);
+
+      emit(CrudAlatLoaded(
+        List<Map<String, dynamic>>.from(alatRes),
+        kategoriList: List<Map<String, dynamic>>.from(kategoriRes),
+      ));
     } catch (e) {
       emit(CrudAlatError(e.toString()));
     }
   }
 
+  // Silent load untuk refresh tanpa loading state
+  Future<void> _silentLoadAlat() async {
+    try {
+      // Load both alat and kategori
+      final alatRes = await _supabase
+          .from('alat')
+          .select('*, kategori(*)')
+          .order('created_at', ascending: false);
+
+      final kategoriRes = await _supabase
+          .from('kategori')
+          .select()
+          .order('nama', ascending: true);
+
+      // Emit loaded state langsung tanpa loading
+      emit(CrudAlatLoaded(
+        List<Map<String, dynamic>>.from(alatRes),
+        kategoriList: List<Map<String, dynamic>>.from(kategoriRes),
+      ));
+    } catch (e) {
+      // Silent error, tidak emit error state
+      print('Error silent load: $e');
+    }
+  }
+
   Future<void> createAlat({
     required String namaAlat,
-    required String kategori,
+    required int idKategori,
     required String kondisi,
     required String status,
     required int jumlahTotal,
@@ -46,7 +124,7 @@ class CrudAlatCubit extends Cubit<CrudAlatState> {
 
       await _supabase.from('alat').insert({
         'nama_alat': namaAlat.trim(),
-        'kategori': kategori.trim(),
+        'id_kategori': idKategori,
         'kondisi': kondisi,
         'status': status,
         'jumlah_total': jumlahTotal,
@@ -55,16 +133,19 @@ class CrudAlatCubit extends Cubit<CrudAlatState> {
       });
 
       emit(const CrudAlatSuccess('Alat berhasil ditambahkan'));
-      await loadAlat();
+      
+      // Langsung silent load tanpa delay
+      await _silentLoadAlat();
     } catch (e) {
       emit(CrudAlatError(e.toString()));
+      await _silentLoadAlat();
     }
   }
 
   Future<void> updateAlat({
     required int idAlat,
     required String namaAlat,
-    required String kategori,
+    required int idKategori,
     required String kondisi,
     required String status,
     required int jumlahTotal,
@@ -84,7 +165,7 @@ class CrudAlatCubit extends Cubit<CrudAlatState> {
 
       await _supabase.from('alat').update({
         'nama_alat': namaAlat.trim(),
-        'kategori': kategori.trim(),
+        'id_kategori': idKategori,
         'kondisi': kondisi,
         'status': status,
         'jumlah_total': jumlahTotal,
@@ -94,9 +175,12 @@ class CrudAlatCubit extends Cubit<CrudAlatState> {
       }).eq('id_alat', idAlat);
 
       emit(const CrudAlatSuccess('Alat berhasil diupdate'));
-      await loadAlat();
+      
+      // Langsung silent load tanpa delay
+      await _silentLoadAlat();
     } catch (e) {
       emit(CrudAlatError(e.toString()));
+      await _silentLoadAlat();
     }
   }
 
@@ -117,9 +201,12 @@ class CrudAlatCubit extends Cubit<CrudAlatState> {
 
       await _supabase.from('alat').delete().eq('id_alat', idAlat);
       emit(const CrudAlatSuccess('Alat berhasil dihapus'));
-      await loadAlat();
+      
+      // Langsung silent load tanpa delay
+      await _silentLoadAlat();
     } catch (e) {
       emit(CrudAlatError(e.toString()));
+      await _silentLoadAlat();
     }
   }
 
@@ -141,10 +228,20 @@ class CrudAlatCubit extends Cubit<CrudAlatState> {
           status == 'Semua' ||
           alat['status'] == status.toLowerCase();
 
-      final kat =
-          kategori == null || kategori == 'Semua' || alat['kategori'] == kategori;
+      final kat = kategori == null ||
+          kategori == 'Semua' ||
+          (alat['kategori'] != null &&
+              alat['kategori']['nama'] == kategori);
 
       return search && st && kat;
     }).toList();
+  }
+
+  @override
+  Future<void> close() {
+    _debounceTimer?.cancel();
+    _alatChannel?.unsubscribe();
+    _kategoriChannel?.unsubscribe();
+    return super.close();
   }
 }

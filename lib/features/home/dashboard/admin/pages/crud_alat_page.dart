@@ -17,6 +17,10 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
   String _selectedFilter = 'Semua';
   String _selectedKategori = 'Semua';
 
+  // Cache untuk menyimpan data terakhir
+  List<Map<String, dynamic>> _cachedAlatList = [];
+  List<Map<String, dynamic>> _cachedKategoriList = [];
+
   @override
   void initState() {
     super.initState();
@@ -25,11 +29,11 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
 
   List<Map<String, dynamic>> _filterAlat(List<Map<String, dynamic>> alatList) {
     return context.read<CrudAlatCubit>().filterAlat(
-      alatList: alatList,
-      status: _selectedFilter,
-      kategori: _selectedKategori,
-      searchQuery: _searchController.text,
-    );
+          alatList: alatList,
+          status: _selectedFilter,
+          kategori: _selectedKategori,
+          searchQuery: _searchController.text,
+        );
   }
 
   @override
@@ -43,6 +47,7 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: AppColors.success,
+                duration: const Duration(seconds: 2),
               ),
             );
           } else if (state is CrudAlatError) {
@@ -50,11 +55,39 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: AppColors.error,
+                duration: const Duration(seconds: 3),
               ),
             );
           }
         },
+        // buildWhen: hanya rebuild saat state berubah ke Loading atau Loaded
+        buildWhen: (previous, current) {
+          // Simpan data ke cache saat loaded
+          if (current is CrudAlatLoaded) {
+            _cachedAlatList = current.alatList;
+            _cachedKategoriList = current.kategoriList;
+          }
+          
+          // Hanya rebuild untuk Loading dan Loaded state
+          return current is CrudAlatLoading || current is CrudAlatLoaded;
+        },
         builder: (context, state) {
+          // Gunakan cached data jika available
+          final alatList = state is CrudAlatLoaded 
+              ? state.alatList 
+              : _cachedAlatList;
+          final kategoriList = state is CrudAlatLoaded 
+              ? state.kategoriList 
+              : _cachedKategoriList;
+
+          // Get kategori options
+          List<String> kategoriOptions = ['Semua'];
+          if (kategoriList.isNotEmpty) {
+            kategoriOptions.addAll(
+              kategoriList.map((k) => k['nama'].toString()),
+            );
+          }
+
           return Column(
             children: [
               // Search & Filter
@@ -107,12 +140,7 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                           child: _buildFilterDropdown(
                             label: 'Kategori',
                             value: _selectedKategori,
-                            items: [
-                              'Semua',
-                              'Diagnostic Tools',
-                              'Hand Tools',
-                              'Power Tools',
-                            ],
+                            items: kategoriOptions,
                             onChanged: (value) {
                               setState(() {
                                 _selectedKategori = value!;
@@ -130,12 +158,14 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
               Expanded(
                 child: Builder(
                   builder: (context) {
-                    if (state is CrudAlatLoading) {
+                    // Show loading only on initial load
+                    if (state is CrudAlatLoading && _cachedAlatList.isEmpty) {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    if (state is CrudAlatLoaded) {
-                      final filteredAlat = _filterAlat(state.alatList);
+                    // Use cached or current data
+                    if (alatList.isNotEmpty) {
+                      final filteredAlat = _filterAlat(alatList);
 
                       if (filteredAlat.isEmpty) {
                         return Center(
@@ -160,17 +190,13 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                         );
                       }
 
-                      return RefreshIndicator(
-                        onRefresh: () =>
-                            context.read<CrudAlatCubit>().loadAlat(),
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: filteredAlat.length,
-                          itemBuilder: (context, index) {
-                            final alat = filteredAlat[index];
-                            return _buildAlatCard(alat);
-                          },
-                        ),
+                      return ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: filteredAlat.length,
+                        itemBuilder: (context, index) {
+                          final alat = filteredAlat[index];
+                          return _buildAlatCard(alat);
+                        },
                       );
                     }
 
@@ -239,6 +265,11 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
   }
 
   Widget _buildAlatCard(Map<String, dynamic> alat) {
+    final kategoriData = alat['kategori'];
+    final kategoriNama = kategoriData != null 
+        ? kategoriData['nama'] ?? 'No Category' 
+        : 'No Category';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -258,33 +289,32 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
               children: [
                 Row(
                   children: [
-                   Container(
-  width: 48,
-  height: 48,
-  decoration: BoxDecoration(
-    color: AppColors.primary.withOpacity(0.2),
-    borderRadius: BorderRadius.circular(8),
-  ),
-  clipBehavior: Clip.hardEdge,
-  child: alat['foto_alat'] != null
-      ? Image.network(
-          alat['foto_alat'],
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) {
-            return const Icon(
-              Icons.inventory_2,
-              color: AppColors.primary,
-              size: 24,
-            );
-          },
-        )
-      : const Icon(
-          Icons.inventory_2,
-          color: AppColors.primary,
-          size: 24,
-        ),
-),
-
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      clipBehavior: Clip.hardEdge,
+                      child: alat['foto_alat'] != null
+                          ? Image.network(
+                              alat['foto_alat'],
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) {
+                                return const Icon(
+                                  Icons.inventory_2,
+                                  color: AppColors.primary,
+                                  size: 24,
+                                );
+                              },
+                            )
+                          : const Icon(
+                              Icons.inventory_2,
+                              color: AppColors.primary,
+                              size: 24,
+                            ),
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -300,7 +330,7 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            alat['kategori'] ?? 'No Category',
+                            kategoriNama,
                             style: const TextStyle(
                               fontSize: 14,
                               color: AppColors.textSecondary,
@@ -449,18 +479,36 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
   }
 
   void _showAlatDialog({Map<String, dynamic>? alat}) {
+    // Use cached kategori list
+    if (_cachedKategoriList.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal memuat kategori. Silakan coba lagi.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     Uint8List? imageBytes;
     String? imageName;
     final isEdit = alat != null;
+
     final namaController = TextEditingController(
       text: alat?['nama_alat'] ?? '',
-    );
-    final kategoriController = TextEditingController(
-      text: alat?['kategori'] ?? '',
     );
     final jumlahController = TextEditingController(
       text: alat?['jumlah_total']?.toString() ?? '1',
     );
+
+    // Get current kategori
+    int? selectedKategoriId;
+    if (isEdit && alat['kategori'] != null) {
+      selectedKategoriId = alat['kategori']['id_kategori'];
+    } else if (_cachedKategoriList.isNotEmpty) {
+      selectedKategoriId = _cachedKategoriList.first['id_kategori'];
+    }
+
     String selectedKondisi = alat?['kondisi'] ?? 'baik';
     String selectedStatus = alat?['status'] ?? 'tersedia';
 
@@ -480,7 +528,8 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                     if (bytes != null) {
                       setDialogState(() {
                         imageBytes = bytes;
-                        imageName = 'alat.png';
+                        imageName =
+                            'alat_${DateTime.now().millisecondsSinceEpoch}.png';
                       });
                     }
                   },
@@ -498,21 +547,32 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                             child: Image.memory(imageBytes!, fit: BoxFit.cover),
                           )
                         : alat?['foto_alat'] != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              alat!['foto_alat'],
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.image, size: 40),
-                              SizedBox(height: 8),
-                              Text('Upload Foto Alat'),
-                            ],
-                          ),
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  alat!['foto_alat'],
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) {
+                                    return const Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.image, size: 40),
+                                        SizedBox(height: 8),
+                                        Text('Upload Foto Alat'),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              )
+                            : const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.image, size: 40),
+                                  SizedBox(height: 8),
+                                  Text('Upload Foto Alat'),
+                                ],
+                              ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -524,12 +584,24 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                TextField(
-                  controller: kategoriController,
+                DropdownButtonFormField<int>(
+                  value: selectedKategoriId,
                   decoration: const InputDecoration(
                     labelText: 'Kategori',
                     prefixIcon: Icon(Icons.category),
                   ),
+                  dropdownColor: AppColors.surface,
+                  items: _cachedKategoriList.map((kategori) {
+                    return DropdownMenuItem<int>(
+                      value: kategori['id_kategori'],
+                      child: Text(kategori['nama'] ?? ''),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setDialogState(() {
+                      selectedKategoriId = value;
+                    });
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -604,7 +676,7 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
             ElevatedButton(
               onPressed: () {
                 if (namaController.text.isEmpty ||
-                    kategoriController.text.isEmpty ||
+                    selectedKategoriId == null ||
                     jumlahController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -621,26 +693,26 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
 
                 if (isEdit) {
                   this.context.read<CrudAlatCubit>().updateAlat(
-                    idAlat: alat['id_alat'],
-                    namaAlat: namaController.text,
-                    kategori: kategoriController.text,
-                    kondisi: selectedKondisi,
-                    status: selectedStatus,
-                    jumlahTotal: jumlahTotal,
-                    jumlahTersedia: alat['jumlah_tersedia'],
-                    fotoBytes: imageBytes,
-                    fotoName: imageName,
-                  );
+                        idAlat: alat['id_alat'],
+                        namaAlat: namaController.text,
+                        idKategori: selectedKategoriId!,
+                        kondisi: selectedKondisi,
+                        status: selectedStatus,
+                        jumlahTotal: jumlahTotal,
+                        jumlahTersedia: alat['jumlah_tersedia'],
+                        fotoBytes: imageBytes,
+                        fotoName: imageName,
+                      );
                 } else {
                   this.context.read<CrudAlatCubit>().createAlat(
-                    namaAlat: namaController.text,
-                    kategori: kategoriController.text,
-                    kondisi: selectedKondisi,
-                    status: selectedStatus,
-                    jumlahTotal: jumlahTotal,
-                    fotoBytes: imageBytes,
-                    fotoName: imageName,
-                  );
+                        namaAlat: namaController.text,
+                        idKategori: selectedKategoriId!,
+                        kondisi: selectedKondisi,
+                        status: selectedStatus,
+                        jumlahTotal: jumlahTotal,
+                        fotoBytes: imageBytes,
+                        fotoName: imageName,
+                      );
                 }
               },
               child: Text(isEdit ? 'Update' : 'Tambah'),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rentalify/core/model/peminjaman_model.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
+import '../cubit/crud_peminjaman_cubit.dart';
 
 class CrudPeminjamanPage extends StatefulWidget {
   const CrudPeminjamanPage({super.key});
@@ -12,48 +15,17 @@ class _CrudPeminjamanPageState extends State<CrudPeminjamanPage> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedStatusFilter = 'Semua';
 
-  // Dummy data
-  final List<Map<String, dynamic>> _peminjamanList = [
-    {
-      'id': 1,
-      'kode': 'PMJ-2024-001',
-      'nama_user': 'John Doe',
-      'email_user': 'john@example.com',
-      'nama_alat': 'OBD2 Scanner Launch X431 Pro',
-      'kategori': 'Diagnostic Tools',
-      'jumlah': 1,
-      'tanggal_pinjam': '2024-01-15',
-      'tanggal_kembali': '2024-01-22',
-      'status': 'dipinjam',
-      'keperluan': 'Untuk diagnosis mobil pelanggan',
-    },
-    {
-      'id': 2,
-      'kode': 'PMJ-2024-002',
-      'nama_user': 'Jane Smith',
-      'email_user': 'jane@example.com',
-      'nama_alat': 'Hydraulic Jack 3 Ton',
-      'kategori': 'Hand Tools',
-      'jumlah': 2,
-      'tanggal_pinjam': '2024-01-18',
-      'tanggal_kembali': '2024-01-25',
-      'status': 'diajukan',
-      'keperluan': 'Untuk servis kendaraan',
-    },
-    {
-      'id': 3,
-      'kode': 'PMJ-2024-003',
-      'nama_user': 'Bob Wilson',
-      'email_user': 'bob@example.com',
-      'nama_alat': 'Impact Wrench Makita',
-      'kategori': 'Power Tools',
-      'jumlah': 1,
-      'tanggal_pinjam': '2024-01-10',
-      'tanggal_kembali': '2024-01-17',
-      'status': 'terlambat',
-      'keperluan': 'Untuk pemasangan ban',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    context.read<CrudPeminjamanCubit>().fetchPeminjaman();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,55 +33,8 @@ class _CrudPeminjamanPageState extends State<CrudPeminjamanPage> {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // Search & Filter
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: AppColors.surface,
-            child: Column(
-              children: [
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Cari peminjaman...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() {});
-                            },
-                          )
-                        : null,
-                  ),
-                  onChanged: (value) => setState(() {}),
-                ),
-                const SizedBox(height: 12),
-                _buildFilterDropdown(
-                  label: 'Status',
-                  value: _selectedStatusFilter,
-                  items: ['Semua', 'Diajukan', 'Disetujui', 'Dipinjam', 'Terlambat', 'Ditolak'],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedStatusFilter = value!;
-                    });
-                  },
-                ),
-              ],
-            ),
-          ),
-
-          // List
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _peminjamanList.length,
-              itemBuilder: (context, index) {
-                final peminjaman = _peminjamanList[index];
-                return _buildPeminjamanCard(peminjaman);
-              },
-            ),
-          ),
+          _buildSearchAndFilter(),
+          Expanded(child: _buildPeminjamanList()),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -121,12 +46,37 @@ class _CrudPeminjamanPageState extends State<CrudPeminjamanPage> {
     );
   }
 
-  Widget _buildFilterDropdown({
-    required String label,
-    required String value,
-    required List<String> items,
-    required Function(String?) onChanged,
-  }) {
+  Widget _buildSearchAndFilter() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: AppColors.surface,
+      child: Column(
+        children: [
+          TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Cari peminjaman...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {});
+                      },
+                    )
+                  : null,
+            ),
+            onChanged: (value) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          _buildFilterDropdown(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterDropdown() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
@@ -136,23 +86,91 @@ class _CrudPeminjamanPageState extends State<CrudPeminjamanPage> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: value,
+          value: _selectedStatusFilter,
           isExpanded: true,
           dropdownColor: AppColors.surface,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-          items: items.map((item) {
-            return DropdownMenuItem(
-              value: item,
-              child: Text(item),
-            );
+          items: [
+            'Semua',
+            'Diajukan',
+            'Disetujui',
+            'Dipinjam',
+            'Dikembalikan',
+            'Terlambat',
+            'Ditolak'
+          ].map((item) {
+            return DropdownMenuItem(value: item, child: Text(item));
           }).toList(),
-          onChanged: onChanged,
+          onChanged: (value) {
+            setState(() => _selectedStatusFilter = value!);
+            context.read<CrudPeminjamanCubit>().fetchPeminjaman(
+                  statusFilter: value,
+                );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildPeminjamanCard(Map<String, dynamic> peminjaman) {
+  Widget _buildPeminjamanList() {
+    return BlocListener<CrudPeminjamanCubit, CrudPeminjamanState>(
+      listener: (context, state) {
+        if (state is CrudPeminjamanSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: Colors.green,
+            ),
+          );
+          context.read<CrudPeminjamanCubit>().fetchPeminjaman();
+        }
+        if (state is CrudPeminjamanError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      },
+      child: BlocBuilder<CrudPeminjamanCubit, CrudPeminjamanState>(
+        builder: (context, state) {
+          if (state is CrudPeminjamanLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (state is CrudPeminjamanLoaded) {
+            final list = state.peminjaman.where((p) {
+              final keyword = _searchController.text.toLowerCase();
+              return p.kode.toLowerCase().contains(keyword) ||
+                  p.namaUser.toLowerCase().contains(keyword) ||
+                  p.namaAlat.toLowerCase().contains(keyword);
+            }).toList();
+
+            if (list.isEmpty) {
+              return const Center(
+                child: Text('Peminjaman tidak ditemukan'),
+              );
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: list.length,
+              itemBuilder: (context, index) =>
+                  _buildPeminjamanCard(list[index]),
+            );
+          }
+
+          if (state is CrudPeminjamanError) {
+            return Center(child: Text(state.message));
+          }
+
+          return const SizedBox();
+        },
+      ),
+    );
+  }
+
+  Widget _buildPeminjamanCard(PeminjamanModel peminjaman) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -170,188 +188,17 @@ class _CrudPeminjamanPageState extends State<CrudPeminjamanPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        peminjaman['kode'],
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                    _buildStatusBadge(peminjaman['status']),
-                  ],
-                ),
+                _buildCardHeader(peminjaman),
                 const SizedBox(height: 12),
-
-                // User Info
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: AppColors.info.withOpacity(0.2),
-                      child: Text(
-                        peminjaman['nama_user'][0].toUpperCase(),
-                        style: const TextStyle(
-                          color: AppColors.info,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            peminjaman['nama_user'],
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            peminjaman['email_user'],
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textTertiary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                _buildUserInfo(peminjaman),
                 const SizedBox(height: 12),
                 const Divider(color: AppColors.border),
                 const SizedBox(height: 12),
-
-                // Alat Info
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.inventory_2,
-                        color: AppColors.primary,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            peminjaman['nama_alat'],
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${peminjaman['kategori']} • Jumlah: ${peminjaman['jumlah']}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                _buildAlatInfo(peminjaman),
                 const SizedBox(height: 12),
-
-                // Date Info
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildDateInfo(
-                          Icons.calendar_today,
-                          'Pinjam',
-                          peminjaman['tanggal_pinjam'],
-                        ),
-                      ),
-                      Container(
-                        width: 1,
-                        height: 30,
-                        color: AppColors.border,
-                      ),
-                      Expanded(
-                        child: _buildDateInfo(
-                          Icons.event,
-                          'Kembali',
-                          peminjaman['tanggal_kembali'],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _buildDateInfo(peminjaman),
                 const SizedBox(height: 12),
-
-                // Actions
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (peminjaman['status'] == 'diajukan') ...[
-                      TextButton.icon(
-                        onPressed: () => _showApprovalDialog(peminjaman, false),
-                        icon: const Icon(Icons.close, size: 18),
-                        label: const Text('Tolak'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.error,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton.icon(
-                        onPressed: () => _showApprovalDialog(peminjaman, true),
-                        icon: const Icon(Icons.check, size: 18),
-                        label: const Text('Setujui'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.success,
-                        ),
-                      ),
-                    ] else ...[
-                      IconButton(
-                        onPressed: () => _showPeminjamanDialog(peminjaman: peminjaman),
-                        icon: const Icon(Icons.edit, size: 20),
-                        color: AppColors.info,
-                        style: IconButton.styleFrom(
-                          backgroundColor: AppColors.info.withOpacity(0.1),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: () => _showDeleteDialog(peminjaman),
-                        icon: const Icon(Icons.delete, size: 20),
-                        color: AppColors.error,
-                        style: IconButton.styleFrom(
-                          backgroundColor: AppColors.error.withOpacity(0.1),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+                _buildCardActions(peminjaman),
               ],
             ),
           ),
@@ -360,70 +207,209 @@ class _CrudPeminjamanPageState extends State<CrudPeminjamanPage> {
     );
   }
 
-  Widget _buildDateInfo(IconData icon, String label, String date) {
-    return Column(
+  Widget _buildCardHeader(PeminjamanModel peminjaman) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Icon(icon, size: 16, color: AppColors.textTertiary),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            color: AppColors.textTertiary,
+        Expanded(
+          child: Text(
+            peminjaman.kode,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primary,
+            ),
           ),
         ),
-        const SizedBox(height: 2),
-        Text(
-          date,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+        _buildStatusBadge(peminjaman.status),
+      ],
+    );
+  }
+
+  Widget _buildUserInfo(PeminjamanModel peminjaman) {
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 20,
+          backgroundColor: AppColors.info.withOpacity(0.2),
+          child: Text(
+            peminjaman.namaUser[0].toUpperCase(),
+            style: const TextStyle(
+              color: AppColors.info,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                peminjaman.namaUser,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                peminjaman.emailUser,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textTertiary,
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
+  Widget _buildAlatInfo(PeminjamanModel peminjaman) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(Icons.inventory_2, color: AppColors.primary, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                peminjaman.namaAlat,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                '${peminjaman.kategori} • Jumlah: ${peminjaman.jumlah}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateInfo(PeminjamanModel peminjaman) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildDateColumn(
+              Icons.calendar_today,
+              'Pinjam',
+              peminjaman.tanggalPinjam,
+            ),
+          ),
+          Container(width: 1, height: 30, color: AppColors.border),
+          Expanded(
+            child: _buildDateColumn(
+              Icons.event,
+              'Kembali',
+              peminjaman.tanggalKembali,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateColumn(IconData icon, String label, String date) {
+    return Column(
+      children: [
+        Icon(icon, size: 16, color: AppColors.textTertiary),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+        const SizedBox(height: 2),
+        Text(
+          date,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCardActions(PeminjamanModel peminjaman) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        if (peminjaman.status == 'diajukan') ...[
+          TextButton.icon(
+            onPressed: () => _showApprovalDialog(peminjaman, false),
+            icon: const Icon(Icons.close, size: 18),
+            label: const Text('Tolak'),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: () => _showApprovalDialog(peminjaman, true),
+            icon: const Icon(Icons.check, size: 18),
+            label: const Text('Setujui'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success,
+            ),
+          ),
+        ] else ...[
+          IconButton(
+            onPressed: () => _showPeminjamanDialog(peminjaman: peminjaman),
+            icon: const Icon(Icons.edit, size: 20),
+            color: AppColors.info,
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: () => _showDeleteDialog(peminjaman),
+            icon: const Icon(Icons.delete, size: 20),
+            color: AppColors.error,
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildStatusBadge(String status) {
-    Color color;
-    String text;
-    switch (status) {
-      case 'diajukan':
-        color = AppColors.warning;
-        text = 'Diajukan';
-        break;
-      case 'disetujui':
-        color = AppColors.info;
-        text = 'Disetujui';
-        break;
-      case 'dipinjam':
-        color = AppColors.success;
-        text = 'Dipinjam';
-        break;
-      case 'terlambat':
-        color = AppColors.error;
-        text = 'Terlambat';
-        break;
-      case 'ditolak':
-        color = AppColors.error;
-        text = 'Ditolak';
-        break;
-      default:
-        color = AppColors.textTertiary;
-        text = status;
-    }
+    final statusConfig = {
+      'diajukan': (AppColors.warning, 'Diajukan'),
+      'disetujui': (AppColors.info, 'Disetujui'),
+      'dipinjam': (AppColors.success, 'Dipinjam'),
+      'terlambat': (AppColors.error, 'Terlambat'),
+      'ditolak': (AppColors.error, 'Ditolak'),
+      'dikembalikan': (Colors.grey, 'Dikembalikan'),
+    };
+
+    final config = statusConfig[status] ?? (AppColors.textTertiary, status);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: config.$1.withOpacity(0.2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        text,
+        config.$2,
         style: TextStyle(
-          color: color,
+          color: config.$1,
           fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
@@ -431,81 +417,325 @@ class _CrudPeminjamanPageState extends State<CrudPeminjamanPage> {
     );
   }
 
-  void _showPeminjamanDialog({Map<String, dynamic>? peminjaman}) {
+  void _showPeminjamanDialog({PeminjamanModel? peminjaman}) {
     final isEdit = peminjaman != null;
+    final formKey = GlobalKey<FormState>();
+
+    final keperluanController = TextEditingController(
+      text: peminjaman?.keperluan ?? '',
+    );
+    final jumlahController = TextEditingController(
+      text: peminjaman?.jumlah.toString() ?? '1',
+    );
+
+    String? selectedUserId = peminjaman?.userId;
+    int? selectedAlatId = peminjaman?.idAlat;
+    int? currentStok;
+    DateTime tanggalPinjam = peminjaman != null
+        ? DateTime.parse(peminjaman.tanggalPinjam)
+        : DateTime.now();
+    DateTime tanggalKembali = peminjaman != null
+        ? DateTime.parse(peminjaman.tanggalKembali)
+        : DateTime.now().add(const Duration(days: 7));
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: Text(isEdit ? 'Edit Peminjaman' : 'Tambah Peminjaman'),
-        content: const SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Form peminjaman akan ditampilkan di sini'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    isEdit
-                        ? 'Peminjaman berhasil diupdate'
-                        : 'Peminjaman berhasil ditambahkan',
-                  ),
-                  backgroundColor: AppColors.success,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (stfContext, setDialogState) {
+          return AlertDialog(
+            backgroundColor: AppColors.surface,
+            title: Text(isEdit ? 'Edit Peminjaman' : 'Tambah Peminjaman'),
+            content: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildUserDropdown(selectedUserId, (value) {
+                      setDialogState(() => selectedUserId = value);
+                    }),
+                    const SizedBox(height: 16),
+                    _buildAlatDropdown(selectedAlatId, (value) async {
+                      setDialogState(() => selectedAlatId = value);
+                      if (value != null) {
+                        final stok = await context
+                            .read<CrudPeminjamanCubit>()
+                            .getjumlah_totalAlat(value);
+                        setDialogState(() => currentStok = stok);
+                      }
+                    }),
+                    if (currentStok != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Stok tersedia: $currentStok',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.info,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: jumlahController,
+                      decoration: const InputDecoration(
+                        labelText: 'Jumlah',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Jumlah tidak boleh kosong';
+                        }
+                        final jumlah = int.tryParse(value);
+                        if (jumlah == null || jumlah <= 0) {
+                          return 'Jumlah harus lebih dari 0';
+                        }
+                        if (currentStok != null && jumlah > currentStok!) {
+                          return 'Jumlah melebihi stok ($currentStok)';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDatePicker(
+                      'Tanggal Pinjam',
+                      tanggalPinjam,
+                      Icons.calendar_today,
+                      (picked) {
+                        setDialogState(() => tanggalPinjam = picked);
+                      },
+                      stfContext,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDatePicker(
+                      'Tanggal Kembali (Rencana)',
+                      tanggalKembali,
+                      Icons.event,
+                      (picked) {
+                        setDialogState(() => tanggalKembali = picked);
+                      },
+                      stfContext,
+                      firstDate: tanggalPinjam,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: keperluanController,
+                      decoration: const InputDecoration(
+                        labelText: 'Keperluan (Opsional)',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                    ),
+                  ],
                 ),
-              );
-            },
-            child: Text(isEdit ? 'Update' : 'Tambah'),
-          ),
-        ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Batal'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (formKey.currentState!.validate()) {
+                    Navigator.pop(dialogContext);
+
+                    final cubit = context.read<CrudPeminjamanCubit>();
+                    final formattedPinjam = _formatDate(tanggalPinjam);
+                    final formattedKembali = _formatDate(tanggalKembali);
+
+                    if (isEdit) {
+                      cubit.updatePeminjaman(
+                        id: peminjaman!.id,
+                        idUser: selectedUserId!,
+                        idAlat: selectedAlatId!,
+                        tanggalPinjam: formattedPinjam,
+                        tanggalKembali: formattedKembali,
+                        jumlah: int.parse(jumlahController.text),
+                        keperluan: keperluanController.text.isEmpty
+                            ? null
+                            : keperluanController.text,
+                      );
+                    } else {
+                      cubit.addPeminjaman(
+                        idUser: selectedUserId!,
+                        idAlat: selectedAlatId!,
+                        tanggalPinjam: formattedPinjam,
+                        tanggalKembali: formattedKembali,
+                        jumlah: int.parse(jumlahController.text),
+                        keperluan: keperluanController.text.isEmpty
+                            ? null
+                            : keperluanController.text,
+                      );
+                    }
+                  }
+                },
+                child: Text(isEdit ? 'Update' : 'Tambah'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  void _showDetailDialog(Map<String, dynamic> peminjaman) {
+  Widget _buildUserDropdown(String? selectedUserId, Function(String?) onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Pilih Peminjam',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        FutureBuilder<List<UserModel>>(
+          future: context.read<CrudPeminjamanCubit>().fetchUsers(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CircularProgressIndicator();
+            }
+
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Text('Tidak ada user tersedia');
+            }
+
+            return DropdownButtonFormField<String>(
+              value: selectedUserId,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              hint: const Text('Pilih User'),
+              items: snapshot.data!.map((user) {
+                return DropdownMenuItem<String>(
+                  value: user.userId,
+                  child: Text('${user.nama} (${user.email})'),
+                );
+              }).toList(),
+              onChanged: onChanged,
+              validator: (value) =>
+                  value == null ? 'Pilih user terlebih dahulu' : null,
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAlatDropdown(int? selectedAlatId, Function(int?) onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Pilih Alat',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        FutureBuilder<List<AlatModel>>(
+          future: context.read<CrudPeminjamanCubit>().fetchAlat(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CircularProgressIndicator();
+            }
+
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Text('Tidak ada alat tersedia');
+            }
+
+            return DropdownButtonFormField<int>(
+              value: selectedAlatId,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              hint: const Text('Pilih Alat'),
+              items: snapshot.data!.map((alat) {
+                return DropdownMenuItem<int>(
+                  value: alat.idAlat,
+                  child: Text(alat.namaAlat),
+                );
+              }).toList(),
+              onChanged: onChanged,
+              validator: (value) =>
+                  value == null ? 'Pilih alat terlebih dahulu' : null,
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDatePicker(
+    String label,
+    DateTime selectedDate,
+    IconData icon,
+    Function(DateTime) onDateSelected,
+    BuildContext context, {
+    DateTime? firstDate,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: selectedDate,
+              firstDate: firstDate ?? DateTime.now().subtract(const Duration(days: 365)),
+              lastDate: DateTime.now().add(const Duration(days: 365)),
+            );
+            if (picked != null) onDateSelected(picked);
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 20),
+                const SizedBox(width: 12),
+                Text('${selectedDate.day}/${selectedDate.month}/${selectedDate.year}'),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showDetailDialog(PeminjamanModel peminjaman) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (_) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: Text(peminjaman['kode']),
+        title: Text(peminjaman.kode),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildDetailRow('Peminjam', peminjaman['nama_user']),
-              _buildDetailRow('Alat', peminjaman['nama_alat']),
-              _buildDetailRow('Jumlah', '${peminjaman['jumlah']}'),
-              _buildDetailRow('Tanggal Pinjam', peminjaman['tanggal_pinjam']),
-              _buildDetailRow('Tanggal Kembali', peminjaman['tanggal_kembali']),
-              _buildDetailRow('Status', peminjaman['status']),
-              const Divider(color: AppColors.border),
-              const Text(
-                'Keperluan:',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                peminjaman['keperluan'],
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textPrimary,
-                ),
-              ),
+              _buildDetailRow('Peminjam', peminjaman.namaUser),
+              _buildDetailRow('Email', peminjaman.emailUser),
+              _buildDetailRow('Alat', peminjaman.namaAlat),
+              _buildDetailRow('Kategori', peminjaman.kategori),
+              _buildDetailRow('Jumlah', '${peminjaman.jumlah}'),
+              _buildDetailRow('Tanggal Pinjam', peminjaman.tanggalPinjam),
+              _buildDetailRow('Tanggal Kembali', peminjaman.tanggalKembali),
+              _buildDetailRow('Status', peminjaman.status),
+              if (peminjaman.catatanAdmin != null) ...[
+                const Divider(),
+                const Text('Catatan Admin:', style: TextStyle(fontWeight: FontWeight.w600)),
+                Text(peminjaman.catatanAdmin!),
+              ],
+              const Divider(),
+              const Text('Keperluan:', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text(peminjaman.keperluan),
             ],
           ),
         ),
@@ -525,41 +755,37 @@ class _CrudPeminjamanPageState extends State<CrudPeminjamanPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
+          SizedBox(width: 120, child: Text(label)),
+          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500))),
         ],
       ),
     );
   }
 
-  void _showApprovalDialog(Map<String, dynamic> peminjaman, bool approve) {
+  void _showApprovalDialog(PeminjamanModel peminjaman, bool approve) {
+    final catatanController = TextEditingController();
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (_) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: Text(approve ? 'Setujui Peminjaman' : 'Tolak Peminjaman'),
-        content: Text(
-          approve
-              ? 'Apakah Anda yakin ingin menyetujui peminjaman ini?'
-              : 'Apakah Anda yakin ingin menolak peminjaman ini?',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(approve
+                ? 'Apakah Anda yakin ingin menyetujui peminjaman ini?'
+                : 'Apakah Anda yakin ingin menolak peminjaman ini?'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: catatanController,
+              decoration: const InputDecoration(
+                labelText: 'Catatan (opsional)',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -569,16 +795,13 @@ class _CrudPeminjamanPageState extends State<CrudPeminjamanPage> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    approve
-                        ? 'Peminjaman berhasil disetujui'
-                        : 'Peminjaman berhasil ditolak',
-                  ),
-                  backgroundColor: approve ? AppColors.success : AppColors.error,
-                ),
-              );
+              context.read<CrudPeminjamanCubit>().approvePeminjaman(
+                    id: peminjaman.id,
+                    approve: approve,
+                    catatan: catatanController.text.isEmpty
+                        ? null
+                        : catatanController.text,
+                  );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: approve ? AppColors.success : AppColors.error,
@@ -590,13 +813,13 @@ class _CrudPeminjamanPageState extends State<CrudPeminjamanPage> {
     );
   }
 
-  void _showDeleteDialog(Map<String, dynamic> peminjaman) {
+  void _showDeleteDialog(PeminjamanModel peminjaman) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (_) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: const Text('Hapus Peminjaman'),
-        content: Text('Apakah Anda yakin ingin menghapus peminjaman "${peminjaman['kode']}"?'),
+        content: Text('Apakah Anda yakin ingin menghapus peminjaman "${peminjaman.kode}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -605,20 +828,17 @@ class _CrudPeminjamanPageState extends State<CrudPeminjamanPage> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Peminjaman berhasil dihapus'),
-                  backgroundColor: AppColors.success,
-                ),
-              );
+              context.read<CrudPeminjamanCubit>().deletePeminjaman(peminjaman.id);
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('Hapus'),
           ),
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 }

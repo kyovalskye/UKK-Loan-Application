@@ -16,8 +16,11 @@ class _CrudKategoriPageState extends State<CrudKategoriPage> {
   @override
   void initState() {
     super.initState();
-    // Trigger fetch saat page pertama kali dibuka
-    context.read<CrudKategoriCubit>().fetchKategori();
+    final cubit = context.read<CrudKategoriCubit>();
+    // ✅ Subscribe ke realtime
+    cubit.subscribeToRealtime();
+    // ✅ Fetch data awal
+    cubit.fetchKategori();
   }
 
   @override
@@ -34,28 +37,37 @@ class _CrudKategoriPageState extends State<CrudKategoriPage> {
         children: [
           _buildSearchBar(),
           Expanded(
-            // ✅ BlocListener untuk menangkap state Success & Error untuk snackbar
+            // ✅ BlocListener untuk menangkap state Success & Error
             child: BlocListener<CrudKategoriCubit, CrudKategoriState>(
+              // ✅ PENTING: listenWhen untuk memastikan listener hanya trigger untuk Success/Error
+              listenWhen: (previous, current) =>
+                  current is CrudKategoriSuccess || current is CrudKategoriError,
               listener: (context, state) {
                 if (state is CrudKategoriSuccess) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(state.message),
                       backgroundColor: Colors.green,
+                      duration: const Duration(seconds: 2),
                     ),
                   );
-                  setState(() {});
                 }
                 if (state is CrudKategoriError) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(state.message),
                       backgroundColor: AppColors.error,
+                      duration: const Duration(seconds: 2),
                     ),
                   );
                 }
               },
               child: BlocBuilder<CrudKategoriCubit, CrudKategoriState>(
+                // ✅ buildWhen untuk rebuild hanya saat data berubah
+                buildWhen: (previous, current) =>
+                    current is CrudKategoriLoading ||
+                    current is CrudKategoriLoaded ||
+                    current is CrudKategoriError,
                 builder: (context, state) {
                   if (state is CrudKategoriLoading) {
                     return const Center(child: CircularProgressIndicator());
@@ -65,8 +77,8 @@ class _CrudKategoriPageState extends State<CrudKategoriPage> {
                     final list = state.kategori.where((k) {
                       final keyword = _searchController.text.toLowerCase();
                       return k['nama'].toString().toLowerCase().contains(
-                        keyword,
-                      );
+                            keyword,
+                          );
                     }).toList();
 
                     if (list.isEmpty) {
@@ -89,9 +101,22 @@ class _CrudKategoriPageState extends State<CrudKategoriPage> {
 
                   if (state is CrudKategoriError) {
                     return Center(
-                      child: Text(
-                        state.message,
-                        style: const TextStyle(color: AppColors.error),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                          const SizedBox(height: 16),
+                          Text(
+                            state.message,
+                            style: const TextStyle(color: AppColors.error),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () => context.read<CrudKategoriCubit>().fetchKategori(),
+                            child: const Text('Coba Lagi'),
+                          ),
+                        ],
                       ),
                     );
                   }
@@ -156,19 +181,6 @@ class _CrudKategoriPageState extends State<CrudKategoriPage> {
               children: [
                 Row(
                   children: [
-                    // Container(
-                    //   padding: const EdgeInsets.all(12),
-                    //   decoration: BoxDecoration(
-                    //     gradient: AppColors.primaryGradient,
-                    //     borderRadius: BorderRadius.circular(12),
-                    //   ),
-                    //   child: const Icon(
-                    //     Icons.category,
-                    //     color: Colors.white,
-                    //     size: 28,
-                    //   ),
-                    // ),
-                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -263,14 +275,12 @@ class _CrudKategoriPageState extends State<CrudKategoriPage> {
     );
   }
 
-  // ✅ Gunakan `context` langsung — tidak perlu `pageContext`
   void _showKategoriDialog({Map<String, dynamic>? kategori}) {
     final isEdit = kategori != null;
     final namaController = TextEditingController(text: kategori?['nama'] ?? '');
     final deskripsiController = TextEditingController(
       text: kategori?['deskripsi'] ?? '',
     );
-    // Capture context dari StatefulWidget sebelum showDialog
     final currentContext = context;
 
     showDialog(
@@ -283,12 +293,19 @@ class _CrudKategoriPageState extends State<CrudKategoriPage> {
           children: [
             TextField(
               controller: namaController,
-              decoration: const InputDecoration(labelText: 'Nama Kategori'),
+              decoration: const InputDecoration(
+                labelText: 'Nama Kategori',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: deskripsiController,
-              decoration: const InputDecoration(labelText: 'Deskripsi'),
+              decoration: const InputDecoration(
+                labelText: 'Deskripsi',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
             ),
           ],
         ),
@@ -299,19 +316,30 @@ class _CrudKategoriPageState extends State<CrudKategoriPage> {
           ),
           ElevatedButton(
             onPressed: () {
+              // Validasi input
+              if (namaController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(currentContext).showSnackBar(
+                  const SnackBar(
+                    content: Text('Nama kategori tidak boleh kosong'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
               Navigator.pop(currentContext);
               final cubit = currentContext.read<CrudKategoriCubit>();
 
               if (isEdit) {
                 cubit.updateKategori(
                   id: kategori!['id'],
-                  nama: namaController.text,
-                  deskripsi: deskripsiController.text,
+                  nama: namaController.text.trim(),
+                  deskripsi: deskripsiController.text.trim(),
                 );
               } else {
                 cubit.addKategori(
-                  nama: namaController.text,
-                  deskripsi: deskripsiController.text,
+                  nama: namaController.text.trim(),
+                  deskripsi: deskripsiController.text.trim(),
                 );
               }
             },
@@ -341,8 +369,8 @@ class _CrudKategoriPageState extends State<CrudKategoriPage> {
             onPressed: () {
               Navigator.pop(currentContext);
               currentContext.read<CrudKategoriCubit>().deleteKategori(
-                kategori['id'],
-              );
+                    kategori['id'],
+                  );
             },
             child: const Text('Hapus'),
           ),

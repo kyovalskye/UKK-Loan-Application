@@ -1,9 +1,9 @@
-// admin_shell_page.dart (FIXED)
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
 import 'package:rentalify/features/home/dashboard/admin/admin_dashboard.dart';
 import 'package:rentalify/features/home/dashboard/admin/cubit/crud_kategori_cubit.dart';
+import 'package:rentalify/features/home/dashboard/admin/cubit/crud_peminjaman_cubit.dart';
 import 'package:rentalify/features/home/dashboard/admin/cubit/crud_user_cubit.dart';
 import 'package:rentalify/features/home/dashboard/admin/pages/crud_alat_page.dart';
 import 'package:rentalify/features/home/dashboard/admin/pages/crud_kategori_page.dart';
@@ -77,6 +77,9 @@ class _AdminShellPageState extends State<AdminShellPage> {
         ),
         BlocProvider(
           create: (_) => CrudUserCubit(),
+        ),
+        BlocProvider(
+          create: (_) => CrudPeminjamanCubit()..fetchPeminjaman(),
         ),
       ],
       child: Scaffold(
