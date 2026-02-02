@@ -1,78 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
+import 'package:rentalify/features/auth/cubit/auth_cubit.dart';
+import 'package:rentalify/features/home/dashboard/staff/cubit/staff_pengembalian_cubit.dart';
+import 'package:rentalify/features/home/dashboard/staff/cubit/staff_pengembalian_state.dart';
 
-class StaffPengembalianPage extends StatefulWidget {
+class StaffPengembalianPage extends StatelessWidget {
   const StaffPengembalianPage({super.key});
 
   @override
-  State<StaffPengembalianPage> createState() => _StaffPengembalianPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => StaffPengembalianCubit()..loadActiveBorrowings(),
+      child: const _StaffPengembalianPageContent(),
+    );
+  }
 }
 
-class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
-  final TextEditingController _searchController = TextEditingController();
-  String _selectedStatusFilter = 'Semua';
+class _StaffPengembalianPageContent extends StatefulWidget {
+  const _StaffPengembalianPageContent();
 
-  // Dummy data - peminjaman yang sedang dipinjam
-  final List<Map<String, dynamic>> _peminjamanAktif = [
-    {
-      'id_peminjaman': 1,
-      'kode_peminjaman': 'PMJ-2024-001',
-      'user': {
-        'nama': 'John Doe',
-        'email': 'john@example.com',
-      },
-      'alat': {
-        'nama_alat': 'OBD2 Scanner Launch X431 Pro',
-        'kategori': 'Diagnostic Tools',
-        'foto_alat': null,
-      },
-      'jumlah_pinjam': 1,
-      'tanggal_pinjam': '2024-01-15',
-      'tanggal_kembali_rencana': '2024-01-22',
-      'status_peminjaman': 'dipinjam',
-      'keperluan': 'Untuk diagnosis kendaraan pelanggan',
-      'created_at': '2024-01-15T08:00:00',
-    },
-    {
-      'id_peminjaman': 2,
-      'kode_peminjaman': 'PMJ-2024-003',
-      'user': {
-        'nama': 'Jane Smith',
-        'email': 'jane@example.com',
-      },
-      'alat': {
-        'nama_alat': 'Hydraulic Jack 3 Ton',
-        'kategori': 'Hand Tools',
-        'foto_alat': null,
-      },
-      'jumlah_pinjam': 2,
-      'tanggal_pinjam': '2024-01-10',
-      'tanggal_kembali_rencana': '2024-01-17',
-      'status_peminjaman': 'terlambat',
-      'keperluan': 'Untuk servis kendaraan',
-      'created_at': '2024-01-10T09:30:00',
-    },
-    {
-      'id_peminjaman': 3,
-      'kode_peminjaman': 'PMJ-2024-005',
-      'user': {
-        'nama': 'Bob Wilson',
-        'email': 'bob@example.com',
-      },
-      'alat': {
-        'nama_alat': 'Impact Wrench Makita',
-        'kategori': 'Power Tools',
-        'foto_alat': null,
-      },
-      'jumlah_pinjam': 1,
-      'tanggal_pinjam': '2024-01-18',
-      'tanggal_kembali_rencana': '2024-01-25',
-      'status_peminjaman': 'dipinjam',
-      'keperluan': 'Untuk pemasangan ban',
-      'created_at': '2024-01-18T14:00:00',
-    },
-  ];
+  @override
+  State<_StaffPengembalianPageContent> createState() =>
+      _StaffPengembalianPageContentState();
+}
+
+class _StaffPengembalianPageContentState
+    extends State<_StaffPengembalianPageContent> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,210 +44,289 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
         title: const Text('Pemantauan Pengembalian'),
         elevation: 0,
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          // TODO: Implement refresh
+      body: BlocConsumer<StaffPengembalianCubit, StaffPengembalianState>(
+        listener: _handleStateChanges,
+        builder: (context, state) {
+          return RefreshIndicator(
+            onRefresh: () async {
+              await context.read<StaffPengembalianCubit>().loadActiveBorrowings();
+            },
+            child: Column(
+              children: [
+                _buildSearchBar(state),
+                _buildSummaryCard(state),
+                Expanded(child: _buildContent(state)),
+              ],
+            ),
+          );
         },
-        child: Column(
-          children: [
-            // Search & Filter
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: AppColors.surface,
-              child: Column(
-                children: [
-                  // Search Bar
-                  TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Cari peminjaman...',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() {});
-                              },
-                            )
-                          : null,
-                    ),
-                    onChanged: (value) => setState(() {}),
-                  ),
-                  const SizedBox(height: 12),
-                  // Filter
-                  _buildFilterDropdown(
-                    label: 'Status',
-                    value: _selectedStatusFilter,
-                    items: ['Semua', 'Dipinjam', 'Terlambat'],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedStatusFilter = value!;
-                      });
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            // Summary Card
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.assignment_return,
-                      color: Colors.white,
-                      size: 32,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Peminjaman Aktif',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.white.withOpacity(0.9),
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Text(
-                              '${_peminjamanAktif.length} Total',
-                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                    color: Colors.white,
-                                  ),
-                            ),
-                            const SizedBox(width: 16),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.error.withOpacity(0.3),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.warning,
-                                    size: 14,
-                                    color: Colors.white,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${_peminjamanAktif.where((p) => p['status_peminjaman'] == 'terlambat').length} Terlambat',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // List
-            Expanded(
-              child: _peminjamanAktif.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.check_circle_outline,
-                            size: 80,
-                            color: AppColors.success,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Tidak ada peminjaman aktif',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Semua alat sudah dikembalikan',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                      itemCount: _peminjamanAktif.length,
-                      itemBuilder: (context, index) {
-                        final peminjaman = _peminjamanAktif[index];
-                        return _buildPeminjamanCard(peminjaman);
-                      },
-                    ),
-            ),
-          ],
-        ),
       ),
     );
   }
 
-  Widget _buildFilterDropdown({
-    required String label,
-    required String value,
-    required List<String> items,
-    required Function(String?) onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          isExpanded: true,
-          dropdownColor: AppColors.surface,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-          items: items.map((item) {
-            return DropdownMenuItem(
-              value: item,
-              child: Text(item),
-            );
-          }).toList(),
-          onChanged: onChanged,
+  void _handleStateChanges(BuildContext context, StaffPengembalianState state) {
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+
+    if (state is StaffPengembalianError) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(state.message),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
         ),
+      );
+    } else if (state is StaffPengembalianOperationSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(state.message),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else if (state is StaffPengembalianOperationLoading) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(child: Text(state.operation)),
+            ],
+          ),
+          duration: const Duration(seconds: 30),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Widget _buildSearchBar(StaffPengembalianState state) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: AppColors.surface,
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Cari peminjaman...',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    context.read<StaffPengembalianCubit>().searchBorrowings('');
+                  },
+                )
+              : null,
+        ),
+        onChanged: (value) {
+          context.read<StaffPengembalianCubit>().searchBorrowings(value);
+        },
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(StaffPengembalianState state) {
+    int totalActive = 0;
+    int totalLate = 0;
+
+    if (state is StaffPengembalianLoaded) {
+      totalActive = state.allBorrowings.length;
+      totalLate = state.allBorrowings.where((p) {
+        final tanggalKembali = DateTime.parse(p['tanggal_kembali_rencana']);
+        return DateTime.now().isAfter(tanggalKembali);
+      }).length;
+    }
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: AppColors.primaryGradient,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.assignment_return,
+              color: Colors.white,
+              size: 32,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Peminjaman Aktif',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      '$totalActive Total',
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                color: Colors.white,
+                              ),
+                    ),
+                    if (totalLate > 0) ...[
+                      const SizedBox(width: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.warning,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '$totalLate Terlambat',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent(StaffPengembalianState state) {
+    if (state is StaffPengembalianLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (state is StaffPengembalianLoaded) {
+      if (state.filteredBorrowings.isEmpty) {
+        return _buildEmptyState(state);
+      }
+
+      return ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+        itemCount: state.filteredBorrowings.length,
+        itemBuilder: (context, index) {
+          final peminjaman = state.filteredBorrowings[index];
+          return _buildPeminjamanCard(peminjaman);
+        },
+      );
+    }
+
+    if (state is StaffPengembalianError) {
+      return _buildErrorState(state);
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildEmptyState(StaffPengembalianLoaded state) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.check_circle_outline,
+            size: 80,
+            color: AppColors.success,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            state.searchQuery.isNotEmpty
+                ? 'Tidak ada peminjaman yang sesuai'
+                : 'Tidak ada peminjaman aktif',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            state.searchQuery.isNotEmpty
+                ? 'Coba kata kunci lain'
+                : 'Semua alat sudah dikembalikan',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(StaffPengembalianError state) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.error_outline,
+            size: 80,
+            color: AppColors.error,
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              state.message,
+              style: const TextStyle(
+                fontSize: 16,
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () {
+              context.read<StaffPengembalianCubit>().loadActiveBorrowings();
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Coba Lagi'),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildPeminjamanCard(Map<String, dynamic> peminjaman) {
-    final user = peminjaman['user'];
+    final user = peminjaman['users'];
     final alat = peminjaman['alat'];
     final tanggalPinjam = DateTime.parse(peminjaman['tanggal_pinjam']);
-    final tanggalKembaliRencana = DateTime.parse(peminjaman['tanggal_kembali_rencana']);
-    final isLate = peminjaman['status_peminjaman'] == 'terlambat';
+    final tanggalKembaliRencana =
+        DateTime.parse(peminjaman['tanggal_kembali_rencana']);
     final today = DateTime.now();
+    final isLate = today.isAfter(tanggalKembaliRencana);
     final daysLate = isLate ? today.difference(tanggalKembaliRencana).inDays : 0;
 
     return Container(
@@ -322,14 +363,15 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
                         ),
                       ),
                     ),
-                    _buildStatusBadge(peminjaman['status_peminjaman']),
+                    _buildStatusBadge(isLate),
                   ],
                 ),
-                
+
                 if (isLate) ...[
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: AppColors.error.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(8),
@@ -337,7 +379,8 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.warning, size: 14, color: AppColors.error),
+                        const Icon(Icons.warning,
+                            size: 14, color: AppColors.error),
                         const SizedBox(width: 6),
                         Text(
                           'Terlambat $daysLate hari',
@@ -360,7 +403,7 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
                       radius: 20,
                       backgroundColor: AppColors.info.withOpacity(0.2),
                       child: Text(
-                        user['nama'][0].toUpperCase(),
+                        (user['nama'] ?? 'U')[0].toUpperCase(),
                         style: const TextStyle(
                           color: AppColors.info,
                           fontSize: 16,
@@ -374,7 +417,7 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            user['nama'],
+                            user['nama'] ?? 'Unknown',
                             style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
@@ -382,7 +425,7 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
                             ),
                           ),
                           Text(
-                            user['email'],
+                            user['email'] ?? '-',
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.textTertiary,
@@ -418,7 +461,7 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            alat['nama_alat'],
+                            alat['nama_alat'] ?? 'Unknown',
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -427,7 +470,7 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '${alat['kategori']} • Jumlah: ${peminjaman['jumlah_pinjam']}',
+                            '${alat['kategori']?['nama'] ?? '-'} • Jumlah: ${peminjaman['jumlah_pinjam']}',
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.textSecondary,
@@ -465,7 +508,8 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
                         child: _buildDateInfo(
                           Icons.event,
                           'Jatuh Tempo',
-                          DateFormat('dd MMM yyyy').format(tanggalKembaliRencana),
+                          DateFormat('dd MMM yyyy')
+                              .format(tanggalKembaliRencana),
                         ),
                       ),
                     ],
@@ -519,16 +563,9 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
     );
   }
 
-  Widget _buildStatusBadge(String status) {
-    Color color;
-    String text;
-    if (status == 'terlambat') {
-      color = AppColors.error;
-      text = 'Terlambat';
-    } else {
-      color = AppColors.success;
-      text = 'Dipinjam';
-    }
+  Widget _buildStatusBadge(bool isLate) {
+    final color = isLate ? AppColors.error : AppColors.success;
+    final text = isLate ? 'Terlambat' : 'Dipinjam';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -548,9 +585,9 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
   }
 
   void _showDetailDialog(Map<String, dynamic> peminjaman) {
-    final user = peminjaman['user'];
+    final user = peminjaman['users'];
     final alat = peminjaman['alat'];
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -561,13 +598,16 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildDetailRow('Peminjam', user['nama']),
-              _buildDetailRow('Email', user['email']),
-              _buildDetailRow('Alat', alat['nama_alat']),
-              _buildDetailRow('Kategori', alat['kategori']),
-              _buildDetailRow('Jumlah', '${peminjaman['jumlah_pinjam']} unit'),
+              _buildDetailRow('Peminjam', user['nama'] ?? 'Unknown'),
+              _buildDetailRow('Email', user['email'] ?? '-'),
+              _buildDetailRow('Alat', alat['nama_alat'] ?? 'Unknown'),
+              _buildDetailRow(
+                  'Kategori', alat['kategori']?['nama'] ?? '-'),
+              _buildDetailRow(
+                  'Jumlah', '${peminjaman['jumlah_pinjam']} unit'),
               _buildDetailRow('Tanggal Pinjam', peminjaman['tanggal_pinjam']),
-              _buildDetailRow('Tanggal Kembali', peminjaman['tanggal_kembali_rencana']),
+              _buildDetailRow('Tanggal Kembali',
+                  peminjaman['tanggal_kembali_rencana']),
               const Divider(color: AppColors.border),
               const Text(
                 'Keperluan:',
@@ -636,40 +676,37 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
     );
   }
 
-  void _showPengembalianDialog(Map<String, dynamic> peminjaman) {
-    final tanggalKembaliRencana = DateTime.parse(peminjaman['tanggal_kembali_rencana']);
-    final today = DateTime.now();
-    final keterlambatan = today.isAfter(tanggalKembaliRencana) 
-        ? today.difference(tanggalKembaliRencana).inDays 
-        : 0;
+  void _showPengembalianDialog(Map<String, dynamic> peminjaman) async {
+    final cubit = context.read<StaffPengembalianCubit>();
     
+    // Get setting denda
+    final settingDenda = await cubit.getSettingDenda();
+
+    if (!mounted) return;
+
+    final tanggalKembaliRencana =
+        DateTime.parse(peminjaman['tanggal_kembali_rencana']);
+
     String selectedKondisi = 'baik';
     final catatanController = TextEditingController();
-    final dendaPerHari = 5000; // Dummy setting
-    final dendaKeterlambatan = keterlambatan * dendaPerHari;
-    int dendaKerusakan = 0;
-    
+
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
-          // Calculate denda kerusakan based on kondisi
-          switch (selectedKondisi) {
-            case 'rusak_ringan':
-              dendaKerusakan = 50000;
-              break;
-            case 'rusak_berat':
-              dendaKerusakan = 200000;
-              break;
-            case 'hilang':
-              dendaKerusakan = 500000; // Dummy price
-              break;
-            default:
-              dendaKerusakan = 0;
-          }
-          
-          final totalDenda = dendaKeterlambatan + dendaKerusakan;
-          
+          // Calculate denda
+          final dendaCalculation = cubit.calculateDenda(
+            tanggalKembaliRencana: tanggalKembaliRencana,
+            kondisi: selectedKondisi,
+            settingDenda: settingDenda,
+          );
+
+          final keterlambatan = dendaCalculation['keterlambatan'] as int;
+          final dendaKeterlambatan =
+              dendaCalculation['denda_keterlambatan'] as double;
+          final dendaKerusakan = dendaCalculation['denda_kerusakan'] as double;
+          final totalDenda = dendaCalculation['total_denda'] as double;
+
           return AlertDialog(
             backgroundColor: AppColors.surface,
             title: const Text('Proses Pengembalian'),
@@ -687,7 +724,7 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Kondisi Alat
                   const Text(
                     'Kondisi Alat Saat Dikembalikan',
@@ -706,8 +743,10 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
                     dropdownColor: AppColors.surface,
                     items: const [
                       DropdownMenuItem(value: 'baik', child: Text('Baik')),
-                      DropdownMenuItem(value: 'rusak_ringan', child: Text('Rusak Ringan')),
-                      DropdownMenuItem(value: 'rusak_berat', child: Text('Rusak Berat')),
+                      DropdownMenuItem(
+                          value: 'rusak_ringan', child: Text('Rusak Ringan')),
+                      DropdownMenuItem(
+                          value: 'rusak_berat', child: Text('Rusak Berat')),
                       DropdownMenuItem(value: 'hilang', child: Text('Hilang')),
                     ],
                     onChanged: (value) {
@@ -717,7 +756,7 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Catatan
                   TextField(
                     controller: catatanController,
@@ -730,7 +769,7 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Info Denda
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -741,10 +780,18 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
                     ),
                     child: Column(
                       children: [
-                        _buildDendaRow('Keterlambatan', '$keterlambatan hari', 'Rp ${_formatCurrency(dendaKeterlambatan)}'),
+                        _buildDendaRow(
+                          'Keterlambatan',
+                          '$keterlambatan hari',
+                          'Rp ${_formatCurrency(dendaKeterlambatan.toInt())}',
+                        ),
                         if (dendaKerusakan > 0) ...[
                           const Divider(color: AppColors.border),
-                          _buildDendaRow('Kerusakan', selectedKondisi == 'hilang' ? 'Hilang' : 'Rusak', 'Rp ${_formatCurrency(dendaKerusakan)}'),
+                          _buildDendaRow(
+                            'Kerusakan',
+                            selectedKondisi == 'hilang' ? 'Hilang' : 'Rusak',
+                            'Rp ${_formatCurrency(dendaKerusakan.toInt())}',
+                          ),
                         ],
                         const Divider(color: AppColors.border),
                         Row(
@@ -759,11 +806,13 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
                               ),
                             ),
                             Text(
-                              'Rp ${_formatCurrency(totalDenda)}',
+                              'Rp ${_formatCurrency(totalDenda.toInt())}',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: totalDenda > 0 ? AppColors.error : AppColors.success,
+                                color: totalDenda > 0
+                                    ? AppColors.error
+                                    : AppColors.success,
                               ),
                             ),
                           ],
@@ -771,7 +820,7 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
                       ],
                     ),
                   ),
-                  
+
                   if (totalDenda > 0) ...[
                     const SizedBox(height: 12),
                     Container(
@@ -779,11 +828,13 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
                       decoration: BoxDecoration(
                         color: AppColors.warning.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+                        border: Border.all(
+                            color: AppColors.warning.withOpacity(0.3)),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.info_outline, color: AppColors.warning, size: 20),
+                          Icon(Icons.info_outline,
+                              color: AppColors.warning, size: 20),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -803,18 +854,39 @@ class _StaffPengembalianPageState extends State<StaffPengembalianPage> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('Batal'),
               ),
               ElevatedButton(
                 onPressed: () {
-                  // TODO: Implement save pengembalian
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Pengembalian berhasil diproses'),
-                      backgroundColor: AppColors.success,
-                    ),
+                  final authState = context.read<AuthCubit>().state;
+                  final idPetugas = authState.userId;
+
+                  if (idPetugas == null) {
+                    Navigator.pop(dialogContext);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('User ID tidak ditemukan'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                    return;
+                  }
+
+                  Navigator.pop(dialogContext);
+
+                  cubit.processPengembalian(
+                    idPeminjaman: peminjaman['id_peminjaman'] as int,
+                    idAlat: peminjaman['id_alat'] as int,
+                    jumlahPinjam: peminjaman['jumlah_pinjam'] as int,
+                    kondisiSaatKembali: selectedKondisi,
+                    catatanPengembalian: catatanController.text.isEmpty
+                        ? null
+                        : catatanController.text,
+                    keterlambatanHari: keterlambatan,
+                    dendaKeterlambatan: dendaKeterlambatan,
+                    dendaKerusakan: dendaKerusakan,
+                    idPetugas: idPetugas,
                   );
                 },
                 style: ElevatedButton.styleFrom(

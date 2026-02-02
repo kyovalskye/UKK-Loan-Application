@@ -4,7 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:rentalify/core/themes/app_theme.dart';
 import 'package:rentalify/app/pages/main_shell_page.dart';
-import 'package:rentalify/features/modules/approval/cubit/approval_cubit.dart';
+import 'package:rentalify/features/home/dashboard/staff/cubit/staff_approval_cubit.dart';
 import 'package:rentalify/features/modules/borrowing/cubit/borrowing_cubit.dart';
 import 'package:rentalify/features/modules/borrowing/cubit/borrowing_list_cubit.dart';
 import 'package:rentalify/features/home/dashboard/admin/cubit/crud_user_cubit.dart';
@@ -50,12 +50,12 @@ class MyApp extends StatelessWidget {
           create: (context) => BorrowingListCubit(SupabaseService()),
         ),
         BlocProvider(
-          create: (context) => ApprovalCubit(SupabaseService()),
+          create: (context) => StaffApprovalCubit(), // ✅ FIXED: Hapus parameter
         ),
         BlocProvider(
           create: (context) => CrudUserCubit(),
         ),
-        BlocProvider(  // TAMBAHKAN INI
+        BlocProvider(
           create: (context) => CrudAlatCubit(),
         ),
       ],

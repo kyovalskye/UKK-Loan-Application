@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
+import 'package:rentalify/features/home/dashboard/staff/pages/staff_approval_page.dart';
 import '../../auth/cubit/auth_cubit.dart';
 import '../../auth/cubit/auth_state.dart';
 import '../cubit/home_cubit.dart';
 import '../cubit/home_state.dart';
 import '../dashboard/admin/admin_dashboard.dart';
-import '../dashboard/staff/staff_dashboard.dart';
 import '../dashboard/borrower/borrower_dashboard.dart';
 
 class HomePage extends StatefulWidget {
@@ -117,7 +117,7 @@ class _HomePageState extends State<HomePage> {
                       ElevatedButton.icon(
                         onPressed: _loadData,
                         icon: const Icon(Icons.refresh),
-                        label: const Text('Coba Lagi'),
+                        label: const Text('Coba LagiAWDAWDIHAWDIUDHI'),
                       ),
                     ],
                   ),
@@ -128,7 +128,9 @@ class _HomePageState extends State<HomePage> {
               if (authState.isAdmin) {
                 return AdminDashboard(statistics: state.statistics);
               } else if (authState.isPetugas) {
-                return StaffDashboard(requests: state.pendingRequests);
+                // ✅ FIXED: StaffApprovalPage tidak perlu parameter requests
+                // Karena sudah punya BlocProvider internal yang load data sendiri
+                return const StaffApprovalPage();
               } else if (authState.isPeminjam) {
                 return BorrowerDashboard(alatList: state.alatList);
               }

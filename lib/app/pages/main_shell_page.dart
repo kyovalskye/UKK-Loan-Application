@@ -6,6 +6,7 @@ import 'package:rentalify/features/auth/cubit/auth_state.dart';
 import 'package:rentalify/features/home/dashboard/admin/pages/admin_shell_page.dart';
 import 'package:rentalify/features/home/dashboard/borrower/pages/borrower_pengembalian_page.dart';
 import 'package:rentalify/features/home/dashboard/borrower/pages/borrowing_peminjaman_page.dart';
+import 'package:rentalify/features/home/dashboard/staff/pages/staff_approval_page.dart';
 import 'package:rentalify/features/home/dashboard/staff/pages/staff_laporan_page.dart';
 import 'package:rentalify/features/home/dashboard/staff/pages/staff_pengembalian_page.dart';
 import 'package:rentalify/features/home/pages/home_page.dart';
@@ -51,9 +52,9 @@ class _MainShellPageState extends State<MainShellPage> {
     } else if (role == 'petugas') {
       return [
         BottomNavItem(
-          icon: Icons.home_outlined,
-          activeIcon: Icons.home,
-          label: 'Home',
+          icon: Icons.pending_actions_outlined,
+          activeIcon: Icons.pending_actions,
+          label: 'Approval',
         ),
         BottomNavItem(
           icon: Icons.assignment_return_outlined,
@@ -89,10 +90,11 @@ class _MainShellPageState extends State<MainShellPage> {
         profilePage,
       ];
     } else if (role == 'petugas') {
+      // ✅ FIXED: Langsung panggil StaffApprovalPage tanpa melalui HomePage
       return [
-        const HomePage(), // StaffDashboard - Persetujuan
-        const StaffPengembalianPage(), // Pemantauan Pengembalian
-        const StaffLaporanPage(), // Laporan
+        const StaffApprovalPage(), // ← PERUBAHAN DI SINI
+        const StaffPengembalianPage(),
+        const StaffLaporanPage(),
         profilePage,
       ];
     }
