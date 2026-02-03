@@ -14,11 +14,21 @@ class CrudPeminjamanPage extends StatefulWidget {
 class _CrudPeminjamanPageState extends State<CrudPeminjamanPage> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedStatusFilter = 'Semua';
+  String? _currentUserRole; // Tambahan untuk menyimpan role user
 
   @override
   void initState() {
     super.initState();
+    _loadUserRole(); // Load role user saat init
     context.read<CrudPeminjamanCubit>().fetchPeminjaman();
+  }
+
+  // Method untuk load user role
+  Future<void> _loadUserRole() async {
+    final role = await context.read<CrudPeminjamanCubit>().getCurrentUserRole();
+    setState(() {
+      _currentUserRole = role;
+    });
   }
 
   @override
@@ -355,7 +365,8 @@ class _CrudPeminjamanPageState extends State<CrudPeminjamanPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        if (peminjaman.status == 'diajukan') ...[
+        // Tombol Approve/Reject HANYA untuk PETUGAS dan status DIAJUKAN
+        if (peminjaman.status == 'diajukan' && _currentUserRole == 'petugas') ...[
           TextButton.icon(
             onPressed: () => _showApprovalDialog(peminjaman, false),
             icon: const Icon(Icons.close, size: 18),
@@ -371,7 +382,10 @@ class _CrudPeminjamanPageState extends State<CrudPeminjamanPage> {
               backgroundColor: AppColors.success,
             ),
           ),
-        ] else ...[
+        ] 
+        // Tombol Edit/Delete untuk ADMIN dan PETUGAS (tapi tidak untuk status diajukan jika petugas)
+        else if (_currentUserRole == 'admin' || 
+                (_currentUserRole == 'petugas' && peminjaman.status != 'diajukan')) ...[
           IconButton(
             onPressed: () => _showPeminjamanDialog(peminjaman: peminjaman),
             icon: const Icon(Icons.edit, size: 20),

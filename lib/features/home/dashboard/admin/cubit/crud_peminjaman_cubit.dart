@@ -10,6 +10,24 @@ class CrudPeminjamanCubit extends Cubit<CrudPeminjamanState> {
 
   CrudPeminjamanCubit() : super(CrudPeminjamanInitial());
 
+  // Tambahkan method untuk get current user role
+  Future<String?> getCurrentUserRole() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return null;
+
+      final res = await _supabase
+          .from('users')
+          .select('role')
+          .eq('user_id', userId)
+          .single();
+
+      return res['role'] as String?;
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<void> fetchPeminjaman({String? statusFilter}) async {
     emit(CrudPeminjamanLoading());
     try {
@@ -54,25 +72,25 @@ class CrudPeminjamanCubit extends Cubit<CrudPeminjamanState> {
   }
 
   Future<List<AlatModel>> fetchAlat() async {
-  try {
-    final res = await _supabase
-        .from('alat')
-        .select('id_alat, nama_alat, jumlah_total')
-        .gt('jumlah_total', 0) // Hanya ambil yang jumlah_totalnya > 0
-        .order('nama_alat');
+    try {
+      final res = await _supabase
+          .from('alat')
+          .select('id_alat, nama_alat, jumlah_total')
+          .gt('jumlah_total', 0)
+          .order('nama_alat');
 
-    if (res.isEmpty) {
-      print('⚠️ Tidak ada data alat di database');
-    } else {
-      print('✅ Berhasil fetch ${(res as List).length} alat');
+      if (res.isEmpty) {
+        print('⚠️ Tidak ada data alat di database');
+      } else {
+        print('✅ Berhasil fetch ${(res as List).length} alat');
+      }
+
+      return (res as List).map((e) => AlatModel.fromMap(e)).toList();
+    } catch (e) {
+      print('❌ Error fetch alat: $e');
+      return [];
     }
-
-    return (res as List).map((e) => AlatModel.fromMap(e)).toList();
-  } catch (e) {
-    print('❌ Error fetch alat: $e');
-    return [];
   }
-}
 
   Future<int> getjumlah_totalAlat(int idAlat) async {
     try {
@@ -142,6 +160,7 @@ class CrudPeminjamanCubit extends Cubit<CrudPeminjamanState> {
         return;
       }
 
+      // Admin tidak bisa mengubah status dan catatan admin
       await _supabase.from('peminjaman').update({
         'id_user': idUser,
         'id_alat': idAlat,
@@ -149,6 +168,7 @@ class CrudPeminjamanCubit extends Cubit<CrudPeminjamanState> {
         'tanggal_kembali_rencana': tanggalKembali,
         'jumlah_pinjam': jumlah,
         'keperluan': keperluan ?? '',
+        // TIDAK ada status_peminjaman dan catatan_admin di sini
       }).eq('id_peminjaman', id);
 
       await fetchPeminjaman();
@@ -164,6 +184,13 @@ class CrudPeminjamanCubit extends Cubit<CrudPeminjamanState> {
     String? catatan,
   }) async {
     try {
+      // Cek apakah user adalah petugas
+      final role = await getCurrentUserRole();
+      if (role != 'petugas') {
+        emit(const CrudPeminjamanError('Hanya petugas yang bisa menyetujui/menolak peminjaman'));
+        return;
+      }
+
       await _supabase.from('peminjaman').update({
         'status_peminjaman': approve ? 'disetujui' : 'ditolak',
         'catatan_admin': catatan,
