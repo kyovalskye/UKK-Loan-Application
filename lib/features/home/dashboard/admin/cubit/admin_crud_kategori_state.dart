@@ -1,4 +1,4 @@
-part of 'crud_kategori_cubit.dart';
+part of 'admin_crud_kategori_cubit.dart';
 
 abstract class CrudKategoriState extends Equatable {
   const CrudKategoriState();

@@ -1,9 +1,9 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:rentalify/core/model/peminjaman_model.dart';
+import 'package:rentalify/core/models/peminjaman_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-part 'crud_peminjaman_state.dart';
+part 'admin_crud_peminjaman_state.dart';
 
 class CrudPeminjamanCubit extends Cubit<CrudPeminjamanState> {
   final _supabase = Supabase.instance.client;

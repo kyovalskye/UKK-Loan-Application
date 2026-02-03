@@ -1,5 +1,5 @@
 // crud_user_state.dart
-part of 'crud_user_cubit.dart';
+part of 'admin_crud_user_cubit.dart';
 
 abstract class CrudUserState extends Equatable {
   const CrudUserState();

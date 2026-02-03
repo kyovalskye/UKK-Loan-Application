@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:rentalify/core/model/pengembalian.dart';
+import 'package:rentalify/core/models/pengembalian.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
 
 class PengembalianDetailDialog extends StatelessWidget {

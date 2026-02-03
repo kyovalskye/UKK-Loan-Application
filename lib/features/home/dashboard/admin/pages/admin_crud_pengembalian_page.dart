@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:rentalify/features/home/dashboard/admin/cubit/crud_pengembalian_cubit.dart';
-import 'package:rentalify/features/home/dashboard/admin/cubit/crud_pengembalian_state.dart';
-import 'package:rentalify/features/home/dashboard/admin/widgets/pengembalian_card.dart';
-import 'package:rentalify/features/home/dashboard/admin/widgets/pengembalian_form_dialog.dart';
+import 'package:rentalify/features/home/dashboard/admin/cubit/admin_crud_pengembalian_cubit.dart';
+import 'package:rentalify/features/home/dashboard/admin/cubit/admin_crud_pengembalian_state.dart';
+import 'package:rentalify/features/home/dashboard/admin/widgets/admin_pengembalian_card.dart';
+import 'package:rentalify/features/home/dashboard/admin/widgets/admin_pengembalian_form_dialog.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
 
 /// Main page - Tidak perlu BlocProvider lagi karena sudah ada di AdminShellPage

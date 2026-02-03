@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:rentalify/core/model/pengembalian.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rentalify/core/models/pengembalian.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
-import 'package:rentalify/features/home/dashboard/admin/widgets/pengembalian_detail_dialog.dart';
-import 'package:rentalify/features/home/dashboard/admin/widgets/pengembalian_payment_dialog.dart';
-import 'package:rentalify/features/home/dashboard/admin/widgets/pengembalian_delete_dialog.dart';
+import 'package:rentalify/features/home/dashboard/admin/cubit/admin_crud_pengembalian_cubit.dart';
+import 'package:rentalify/features/home/dashboard/admin/widgets/admin_pengembalian_detail_dialog.dart';
+import 'package:rentalify/features/home/dashboard/admin/widgets/admin_pengembalian_payment_dialog.dart';
+import 'package:rentalify/features/home/dashboard/admin/widgets/admin_pengembalian_delete_dialog.dart';
 
 class PengembalianCard extends StatelessWidget {
   final Map<String, dynamic> pengembalianData;
@@ -293,21 +295,35 @@ class PengembalianCard extends StatelessWidget {
   void _showDetailDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => PengembalianDetailDialog(pengembalian: pengembalian),
+      builder: (dialogContext) => PengembalianDetailDialog(
+        pengembalian: pengembalian,
+      ),
     );
   }
 
   void _showPaymentDialog(BuildContext context) {
+    // Ambil cubit sebelum dialog dibuka
+    final cubit = context.read<PengembalianCubit>();
+    
     showDialog(
       context: context,
-      builder: (context) => PengembalianPaymentDialog(pengembalian: pengembalian),
+      builder: (dialogContext) => PengembalianPaymentDialog(
+        pengembalian: pengembalian,
+        cubit: cubit, // Passing cubit ke dialog
+      ),
     );
   }
 
   void _showDeleteDialog(BuildContext context) {
+    // Ambil cubit sebelum dialog dibuka
+    final cubit = context.read<PengembalianCubit>();
+    
     showDialog(
       context: context,
-      builder: (context) => PengembalianDeleteDialog(pengembalian: pengembalian),
+      builder: (dialogContext) => PengembalianDeleteDialog(
+        pengembalian: pengembalian,
+        cubit: cubit, // Passing cubit ke dialog
+      ),
     );
   }
 }

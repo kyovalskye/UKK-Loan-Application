@@ -1,7 +1,8 @@
+import 'dart:async'; // TAMBAHKAN INI untuk Timer
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:rentalify/core/model/peminjaman_approval.dart';
+import 'package:rentalify/core/models/peminjaman_approval.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
 import 'package:rentalify/features/home/dashboard/staff/cubit/staff_approval_cubit.dart';
 import 'package:rentalify/features/home/dashboard/staff/cubit/staff_approval_state.dart';
@@ -12,7 +13,9 @@ class StaffApprovalPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => StaffApprovalCubit()..loadPendingRequests(),
+      create: (context) => StaffApprovalCubit()
+        ..loadPendingRequests()
+        ..setupRealtime(), // TAMBAHKAN untuk realtime (opsional)
       child: const _StaffApprovalPageContent(),
     );
   }
@@ -28,10 +31,23 @@ class _StaffApprovalPageContent extends StatefulWidget {
 
 class _StaffApprovalPageContentState extends State<_StaffApprovalPageContent> {
   final TextEditingController _searchController = TextEditingController();
+  Timer? _refreshTimer; // TAMBAHKAN untuk auto refresh
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto refresh setiap 30 detik (OPSIONAL - hapus jika tidak perlu)
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        context.read<StaffApprovalCubit>().loadPendingRequests();
+      }
+    });
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _refreshTimer?.cancel(); // PENTING: cancel timer
     super.dispose();
   }
 
@@ -44,7 +60,10 @@ class _StaffApprovalPageContentState extends State<_StaffApprovalPageContent> {
           onRefresh: () async {
             await context.read<StaffApprovalCubit>().loadPendingRequests();
           },
+          color: AppColors.primary, // TAMBAHKAN untuk visual feedback
+          backgroundColor: Colors.white,
           child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(), // PENTING: Agar scroll selalu aktif
             slivers: [
               // Header Section
               SliverToBoxAdapter(
@@ -77,9 +96,12 @@ class _StaffApprovalPageContentState extends State<_StaffApprovalPageContent> {
                 ),
               ),
 
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
               // Content
               if (state is StaffApprovalLoading)
                 const SliverFillRemaining(
+                  hasScrollBody: false, // TAMBAHKAN INI
                   child: Center(child: CircularProgressIndicator()),
                 )
               else if (state is StaffApprovalLoaded)
@@ -115,6 +137,27 @@ class _StaffApprovalPageContentState extends State<_StaffApprovalPageContent> {
         SnackBar(
           content: Text(state.message),
           backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else if (state is StaffApprovalLoaded && state.isOperating) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(child: Text(state.operationMessage ?? 'Memproses...')),
+            ],
+          ),
+          duration: const Duration(seconds: 30),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -219,6 +262,7 @@ class _StaffApprovalPageContentState extends State<_StaffApprovalPageContent> {
   Widget _buildRequestList(StaffApprovalLoaded state) {
     if (state.filteredRequests.isEmpty) {
       return SliverFillRemaining(
+        hasScrollBody: false, // TAMBAHKAN INI
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -242,6 +286,18 @@ class _StaffApprovalPageContentState extends State<_StaffApprovalPageContent> {
                     : 'Semua permintaan sudah diproses',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
+              const SizedBox(height: 16),
+              // TAMBAHKAN TOMBOL REFRESH MANUAL
+              TextButton.icon(
+                onPressed: () {
+                  context.read<StaffApprovalCubit>().loadPendingRequests();
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Refresh'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                ),
+              ),
             ],
           ),
         ),
@@ -264,6 +320,7 @@ class _StaffApprovalPageContentState extends State<_StaffApprovalPageContent> {
 
   Widget _buildErrorState(StaffApprovalError state) {
     return SliverFillRemaining(
+      hasScrollBody: false, // TAMBAHKAN INI
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

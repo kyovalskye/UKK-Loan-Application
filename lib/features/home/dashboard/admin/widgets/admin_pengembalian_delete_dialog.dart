@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:rentalify/core/model/pengembalian.dart';
+import 'package:rentalify/core/models/pengembalian.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
-import 'package:rentalify/features/home/dashboard/admin/cubit/crud_pengembalian_cubit.dart';
+import 'package:rentalify/features/home/dashboard/admin/cubit/admin_crud_pengembalian_cubit.dart';
 
 class PengembalianDeleteDialog extends StatelessWidget {
   final Pengembalian pengembalian;
+  final PengembalianCubit cubit; // Tambahkan parameter cubit
 
   const PengembalianDeleteDialog({
     super.key,
     required this.pengembalian,
+    required this.cubit, // Required parameter
   });
 
   @override
@@ -27,10 +28,11 @@ class PengembalianDeleteDialog extends StatelessWidget {
         ElevatedButton(
           onPressed: () {
             Navigator.pop(context);
-            context.read<PengembalianCubit>().deletePengembalian(
-                  pengembalian.idPengembalian,
-                  pengembalian.idPeminjaman,
-                );
+            // Gunakan cubit yang di-passing dari parameter
+            cubit.deletePengembalian(
+              pengembalian.idPengembalian,
+              pengembalian.idPeminjaman,
+            );
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.error,

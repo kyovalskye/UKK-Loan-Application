@@ -1,4 +1,4 @@
-part of 'crud_peminjaman_cubit.dart';
+part of 'admin_crud_peminjaman_cubit.dart';
 
 abstract class CrudPeminjamanState extends Equatable {
   const CrudPeminjamanState();

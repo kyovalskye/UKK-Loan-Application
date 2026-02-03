@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:rentalify/core/model/pengembalian.dart';
+import 'package:rentalify/core/models/pengembalian.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
-import 'package:rentalify/features/home/dashboard/admin/cubit/crud_pengembalian_cubit.dart';
+import 'package:rentalify/features/home/dashboard/admin/cubit/admin_crud_pengembalian_cubit.dart';
 
 class PengembalianPaymentDialog extends StatelessWidget {
   final Pengembalian pengembalian;
+  final PengembalianCubit cubit; // Tambahkan parameter cubit
 
   const PengembalianPaymentDialog({
     super.key,
     required this.pengembalian,
+    required this.cubit, // Required parameter
   });
 
   @override
@@ -58,9 +59,8 @@ class PengembalianPaymentDialog extends StatelessWidget {
         ElevatedButton(
           onPressed: () {
             Navigator.pop(context);
-            context
-                .read<PengembalianCubit>()
-                .updatePaymentStatus(pengembalian.idPengembalian);
+            // Gunakan cubit yang di-passing dari parameter
+            cubit.updatePaymentStatus(pengembalian.idPengembalian);
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.success,

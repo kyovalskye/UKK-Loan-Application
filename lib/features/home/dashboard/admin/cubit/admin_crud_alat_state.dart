@@ -1,4 +1,4 @@
-part of 'crud_alat_cubit.dart';
+part of 'admin_crud_alat_cubit.dart';
 
 abstract class CrudAlatState extends Equatable {
   const CrudAlatState();

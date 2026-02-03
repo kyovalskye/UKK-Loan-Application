@@ -1,5 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:rentalify/features/home/dashboard/admin/cubit/crud_pengembalian_state.dart';
+import 'package:rentalify/features/home/dashboard/admin/cubit/admin_crud_pengembalian_state.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PengembalianCubit extends Cubit<PengembalianState> {

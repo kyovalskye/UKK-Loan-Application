@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
-import 'package:rentalify/features/home/dashboard/admin/cubit/crud_user_cubit.dart';
+import 'package:rentalify/features/home/dashboard/admin/cubit/admin_crud_user_cubit.dart';
 
 class CrudUserPage extends StatefulWidget {
   const CrudUserPage({super.key});

@@ -2,7 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-part 'crud_kategori_state.dart';
+part 'admin_crud_kategori_state.dart';
 
 class CrudKategoriCubit extends Cubit<CrudKategoriState> {
   final _supabase = Supabase.instance.client;

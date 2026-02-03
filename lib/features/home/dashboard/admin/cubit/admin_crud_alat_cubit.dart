@@ -5,7 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rentalify/core/services/alat_image_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-part 'crud_alat_state.dart';
+part 'admin_crud_alat_state.dart';
 
 class CrudAlatCubit extends Cubit<CrudAlatState> {
   final _supabase = Supabase.instance.client;

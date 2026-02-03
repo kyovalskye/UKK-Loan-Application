@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
-import 'package:rentalify/features/home/dashboard/admin/cubit/crud_pengembalian_cubit.dart';
+import 'package:rentalify/features/home/dashboard/admin/cubit/admin_crud_pengembalian_cubit.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PengembalianFormDialog extends StatefulWidget {

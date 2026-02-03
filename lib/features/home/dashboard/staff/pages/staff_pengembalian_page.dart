@@ -36,33 +36,37 @@ class _StaffPengembalianPageContentState
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Pemantauan Pengembalian'),
-        elevation: 0,
-      ),
-      body: BlocConsumer<StaffPengembalianCubit, StaffPengembalianState>(
-        listener: _handleStateChanges,
-        builder: (context, state) {
-          return RefreshIndicator(
-            onRefresh: () async {
-              await context.read<StaffPengembalianCubit>().loadActiveBorrowings();
-            },
-            child: Column(
-              children: [
-                _buildSearchBar(state),
-                _buildSummaryCard(state),
-                Expanded(child: _buildContent(state)),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: AppColors.background,
+    appBar: AppBar(
+      title: const Text('Pemantauan Pengembalian'),
+      elevation: 0,
+    ),
+    body: BlocConsumer<StaffPengembalianCubit, StaffPengembalianState>(
+      listener: _handleStateChanges,
+      builder: (context, state) {
+        return RefreshIndicator(
+          onRefresh: () async {
+            await context.read<StaffPengembalianCubit>().loadActiveBorrowings();
+          },
+          color: AppColors.primary, // Warna loading indicator
+          backgroundColor: Colors.white,
+          displacement: 40, // Jarak dari atas
+          strokeWidth: 3, // Ketebalan circle
+          child: Column(
+            children: [
+              _buildSearchBar(state),
+              _buildSummaryCard(state),
+              Expanded(child: _buildContent(state)),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
 
   void _handleStateChanges(BuildContext context, StaffPengembalianState state) {
     ScaffoldMessenger.of(context).removeCurrentSnackBar();
@@ -228,32 +232,51 @@ class _StaffPengembalianPageContentState
     );
   }
 
-  Widget _buildContent(StaffPengembalianState state) {
-    if (state is StaffPengembalianLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+Widget _buildContent(StaffPengembalianState state) {
+  if (state is StaffPengembalianLoading) {
+    return const Center(child: CircularProgressIndicator());
+  }
 
-    if (state is StaffPengembalianLoaded) {
-      if (state.filteredBorrowings.isEmpty) {
-        return _buildEmptyState(state);
-      }
-
-      return ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-        itemCount: state.filteredBorrowings.length,
-        itemBuilder: (context, index) {
-          final peminjaman = state.filteredBorrowings[index];
-          return _buildPeminjamanCard(peminjaman);
-        },
+  if (state is StaffPengembalianLoaded) {
+    if (state.filteredBorrowings.isEmpty) {
+      // PENTING: Wrap dengan ListView agar pull-to-refresh tetap bisa digunakan
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(), // Ini penting!
+        children: [
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.5,
+            child: _buildEmptyState(state),
+          ),
+        ],
       );
     }
 
-    if (state is StaffPengembalianError) {
-      return _buildErrorState(state);
-    }
-
-    return const SizedBox.shrink();
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(), // Ini juga penting!
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+      itemCount: state.filteredBorrowings.length,
+      itemBuilder: (context, index) {
+        final peminjaman = state.filteredBorrowings[index];
+        return _buildPeminjamanCard(peminjaman);
+      },
+    );
   }
+
+  if (state is StaffPengembalianError) {
+    // Wrap dengan ListView agar tetap bisa pull-to-refresh
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.5,
+          child: _buildErrorState(state),
+        ),
+      ],
+    );
+  }
+
+  return const SizedBox.shrink();
+}
 
   Widget _buildEmptyState(StaffPengembalianLoaded state) {
     return Center(

@@ -1,12 +1,36 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:rentalify/core/model/peminjaman_approval.dart';
+import 'package:rentalify/core/models/peminjaman_approval.dart';
 import 'package:rentalify/features/home/dashboard/staff/cubit/staff_approval_state.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class StaffApprovalCubit extends Cubit<StaffApprovalState> {
   final SupabaseClient _supabase = Supabase.instance.client;
+  RealtimeChannel? _realtimeChannel; // TAMBAHKAN untuk realtime
 
   StaffApprovalCubit() : super(StaffApprovalInitial());
+
+  /// Setup realtime subscription (OPSIONAL)
+  void setupRealtime() {
+    _realtimeChannel = _supabase
+        .channel('peminjaman_approval_changes')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'peminjaman',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'status_peminjaman',
+            value: 'diajukan',
+          ),
+          callback: (payload) {
+            print('🔄 Realtime update detected: ${payload.eventType}');
+            loadPendingRequests();
+          },
+        )
+        .subscribe();
+    
+    print('✅ Realtime subscription active');
+  }
 
   /// Load semua peminjaman yang statusnya 'diajukan'
   Future<void> loadPendingRequests() async {
@@ -110,7 +134,7 @@ class StaffApprovalCubit extends Cubit<StaffApprovalState> {
         filteredRequests: requests,
       ));
     } catch (e) {
-      print('❌ Error loadPendingRequests: $e'); // Untuk debugging
+      print('❌ Error loadPendingRequests: $e');
       emit(StaffApprovalError('Gagal memuat data: ${e.toString()}'));
     }
   }
@@ -162,7 +186,14 @@ class StaffApprovalCubit extends Cubit<StaffApprovalState> {
     String? catatanAdmin,
   }) async {
     try {
-      emit(StaffApprovalOperationLoading('Menyetujui peminjaman...'));
+      final currentState = state;
+      if (currentState is! StaffApprovalLoaded) return;
+
+      // Emit loading state sambil mempertahankan data
+      emit(currentState.copyWith(
+        isOperating: true,
+        operationMessage: 'Menyetujui peminjaman...',
+      ));
 
       // 1. Cek stok terlebih dahulu
       final alatResponse = await _supabase
@@ -195,8 +226,9 @@ class StaffApprovalCubit extends Cubit<StaffApprovalState> {
       emit(StaffApprovalOperationSuccess('Peminjaman berhasil disetujui'));
       await loadPendingRequests();
     } catch (e) {
-      print('❌ Error approvePeminjaman: $e'); // Untuk debugging
-      emit(StaffApprovalError('Gagal menyetujui: ${e.toString()}'));
+      print('❌ Error approvePeminjaman: $e');
+      final message = e is PostgrestException ? e.message : e.toString();
+      emit(StaffApprovalError('Gagal menyetujui peminjaman:\n$message'));
       await loadPendingRequests();
     }
   }
@@ -207,7 +239,14 @@ class StaffApprovalCubit extends Cubit<StaffApprovalState> {
     String? catatanAdmin,
   }) async {
     try {
-      emit(StaffApprovalOperationLoading('Menolak peminjaman...'));
+      final currentState = state;
+      if (currentState is! StaffApprovalLoaded) return;
+
+      // Emit loading state sambil mempertahankan data
+      emit(currentState.copyWith(
+        isOperating: true,
+        operationMessage: 'Menolak peminjaman...',
+      ));
 
       await _supabase.from('peminjaman').update({
         'status_peminjaman': 'ditolak',
@@ -218,7 +257,7 @@ class StaffApprovalCubit extends Cubit<StaffApprovalState> {
       emit(StaffApprovalOperationSuccess('Peminjaman berhasil ditolak'));
       await loadPendingRequests();
     } catch (e) {
-      print('❌ Error rejectPeminjaman: $e'); // Untuk debugging
+      print('❌ Error rejectPeminjaman: $e');
       emit(StaffApprovalError('Gagal menolak: ${e.toString()}'));
       await loadPendingRequests();
     }
@@ -250,5 +289,11 @@ class StaffApprovalCubit extends Cubit<StaffApprovalState> {
         'maksimal_hari_pinjam': 7,
       };
     }
+  }
+
+  @override
+  Future<void> close() {
+    _realtimeChannel?.unsubscribe(); // Unsubscribe saat cubit di-close
+    return super.close();
   }
 }

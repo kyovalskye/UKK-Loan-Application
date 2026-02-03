@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
-import '../cubit/crud_kategori_cubit.dart';
+import '../cubit/admin_crud_kategori_cubit.dart';
 
 class CrudKategoriPage extends StatefulWidget {
   const CrudKategoriPage({super.key});

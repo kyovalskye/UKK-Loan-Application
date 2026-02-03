@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:rentalify/core/model/peminjaman_model.dart';
+import 'package:rentalify/core/models/peminjaman_model.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
-import '../cubit/crud_peminjaman_cubit.dart';
+import '../cubit/admin_crud_peminjaman_cubit.dart';
 
 class CrudPeminjamanPage extends StatefulWidget {
   const CrudPeminjamanPage({super.key});

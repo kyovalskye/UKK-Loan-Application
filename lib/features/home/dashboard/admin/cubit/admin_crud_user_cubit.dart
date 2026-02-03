@@ -4,7 +4,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-part 'crud_user_state.dart';
+part 'admin_crud_user_state.dart';
 
 class CrudUserCubit extends Cubit<CrudUserState> {
   final _supabase = Supabase.instance.client;

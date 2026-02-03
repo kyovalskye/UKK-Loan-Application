@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
-import 'package:rentalify/features/home/dashboard/admin/cubit/crud_alat_cubit.dart';
+import 'package:rentalify/features/home/dashboard/admin/cubit/admin_crud_alat_cubit.dart';
 import 'dart:typed_data';
 import 'package:image_picker_web/image_picker_web.dart';
 
@@ -86,7 +86,7 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
             kategoriOptions.addAll(
               kategoriList.map((k) => k['nama'].toString()),
             );
-          }
+          } 
 
           return Column(
             children: [

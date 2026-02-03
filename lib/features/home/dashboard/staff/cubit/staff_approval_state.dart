@@ -1,4 +1,4 @@
-import 'package:rentalify/core/model/peminjaman_approval.dart';
+import 'package:rentalify/core/models/peminjaman_approval.dart';
 
 abstract class StaffApprovalState {}
 
@@ -11,12 +11,16 @@ class StaffApprovalLoaded extends StaffApprovalState {
   final List<PeminjamanApproval> filteredRequests;
   final String searchQuery;
   final String statusFilter;
+  final bool isOperating; // TAMBAHKAN INI
+  final String? operationMessage; // TAMBAHKAN INI
 
   StaffApprovalLoaded({
     required this.allRequests,
     required this.filteredRequests,
     this.searchQuery = '',
     this.statusFilter = 'Semua',
+    this.isOperating = false, // TAMBAHKAN INI
+    this.operationMessage, // TAMBAHKAN INI
   });
 
   StaffApprovalLoaded copyWith({
@@ -24,12 +28,16 @@ class StaffApprovalLoaded extends StaffApprovalState {
     List<PeminjamanApproval>? filteredRequests,
     String? searchQuery,
     String? statusFilter,
+    bool? isOperating, // TAMBAHKAN INI
+    String? operationMessage, // TAMBAHKAN INI
   }) {
     return StaffApprovalLoaded(
       allRequests: allRequests ?? this.allRequests,
       filteredRequests: filteredRequests ?? this.filteredRequests,
       searchQuery: searchQuery ?? this.searchQuery,
       statusFilter: statusFilter ?? this.statusFilter,
+      isOperating: isOperating ?? this.isOperating, // TAMBAHKAN INI
+      operationMessage: operationMessage ?? this.operationMessage, // TAMBAHKAN INI
     );
   }
 }
