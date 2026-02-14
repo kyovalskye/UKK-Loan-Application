@@ -585,7 +585,7 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<int>(
-                  value: selectedKategoriId,
+                  initialValue: selectedKategoriId,
                   decoration: const InputDecoration(
                     labelText: 'Kategori',
                     prefixIcon: Icon(Icons.category),
@@ -614,7 +614,7 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedKondisi,
+                  initialValue: selectedKondisi,
                   decoration: const InputDecoration(
                     labelText: 'Kondisi',
                     prefixIcon: Icon(Icons.build),
@@ -639,7 +639,7 @@ class _CrudAlatPageState extends State<CrudAlatPage> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedStatus,
+                  initialValue: selectedStatus,
                   decoration: const InputDecoration(
                     labelText: 'Status',
                     prefixIcon: Icon(Icons.info),

@@ -40,7 +40,7 @@ class PeminjamanModel {
 
     return PeminjamanModel(
       id: map['id_peminjaman'],
-      kode: map['kode_peminjaman'] ?? '-',
+      kode: map['kode_peminjaman'] ?? '-', // typo peminjman
       namaUser: user?['nama'] ?? 'Unknown',
       emailUser: user?['email'] ?? '-',
       userId: user?['user_id'] ?? '',

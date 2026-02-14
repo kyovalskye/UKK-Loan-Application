@@ -35,35 +35,45 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider( 
+    return MultiRepositoryProvider(
       providers: [
-        BlocProvider(
-          create: (context) => AuthCubit(SupabaseService())..checkAuthStatus(),
-        ),
-        BlocProvider(
-          create: (context) => HomeCubit(SupabaseService()),
-        ),
-        BlocProvider(
-          create: (context) => BorrowingCubit(SupabaseService()),
-        ),
-        BlocProvider(
-          create: (context) => BorrowingListCubit(SupabaseService()),
-        ),
-        BlocProvider(
-          create: (context) => StaffApprovalCubit(), // ✅ FIXED: Hapus parameter
-        ),
-        BlocProvider(
-          create: (context) => CrudUserCubit(),
-        ),
-        BlocProvider(
-          create: (context) => CrudAlatCubit(),
+        // Provide SupabaseService as a Repository Provider
+        // so it can be accessed throughout the app with context.read<SupabaseService>()
+        RepositoryProvider<SupabaseService>(
+          create: (context) => SupabaseService(),
         ),
       ],
-      child: MaterialApp(
-        title: 'Alat Otomotif App',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.darkTheme,
-        home: const AuthWrapper(),
+      child: MultiBlocProvider( 
+        providers: [
+          BlocProvider(
+            create: (context) => AuthCubit(context.read<SupabaseService>())
+              ..checkAuthStatus(),
+          ),
+          BlocProvider(
+            create: (context) => HomeCubit(context.read<SupabaseService>()),
+          ),
+          BlocProvider(
+            create: (context) => BorrowingCubit(context.read<SupabaseService>()),
+          ),
+          BlocProvider(
+            create: (context) => BorrowingListCubit(context.read<SupabaseService>()),
+          ),
+          BlocProvider(
+            create: (context) => StaffApprovalCubit(),
+          ),
+          BlocProvider(
+            create: (context) => CrudUserCubit(),
+          ),
+          BlocProvider(
+            create: (context) => CrudAlatCubit(),
+          ),
+        ],
+        child: MaterialApp(
+          title: 'Alat Otomotif App',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.darkTheme,
+          home: const AuthWrapper(),
+        ),
       ),
     );
   }

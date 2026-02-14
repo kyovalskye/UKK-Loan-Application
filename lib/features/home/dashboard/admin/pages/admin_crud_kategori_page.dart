@@ -332,7 +332,7 @@ class _CrudKategoriPageState extends State<CrudKategoriPage> {
 
               if (isEdit) {
                 cubit.updateKategori(
-                  id: kategori!['id'],
+                  id: kategori['id'],
                   nama: namaController.text.trim(),
                   deskripsi: deskripsiController.text.trim(),
                 );

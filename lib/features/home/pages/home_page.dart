@@ -117,7 +117,7 @@ class _HomePageState extends State<HomePage> {
                       ElevatedButton.icon(
                         onPressed: _loadData,
                         icon: const Icon(Icons.refresh),
-                        label: const Text('Coba LagiAWDAWDIHAWDIUDHI'),
+                        label: const Text('Coba Lagi'),
                       ),
                     ],
                   ),

@@ -36,37 +36,36 @@ class _StaffPengembalianPageContentState
     super.dispose();
   }
 
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    backgroundColor: AppColors.background,
-    appBar: AppBar(
-      title: const Text('Pemantauan Pengembalian'),
-      elevation: 0,
-    ),
-    body: BlocConsumer<StaffPengembalianCubit, StaffPengembalianState>(
-      listener: _handleStateChanges,
-      builder: (context, state) {
-        return RefreshIndicator(
-          onRefresh: () async {
-            await context.read<StaffPengembalianCubit>().loadActiveBorrowings();
-          },
-          color: AppColors.primary, // Warna loading indicator
-          backgroundColor: Colors.white,
-          displacement: 40, // Jarak dari atas
-          strokeWidth: 3, // Ketebalan circle
-          child: Column(
-            children: [
-              _buildSearchBar(state),
-              _buildSummaryCard(state),
-              Expanded(child: _buildContent(state)),
-            ],
-          ),
-        );
-      },
-    ),
-  );
-}
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('Pemantauan Peminjaman'), elevation: 0),
+      body: BlocConsumer<StaffPengembalianCubit, StaffPengembalianState>(
+        listener: _handleStateChanges,
+        builder: (context, state) {
+          return RefreshIndicator(
+            onRefresh: () async {
+              await context
+                  .read<StaffPengembalianCubit>()
+                  .loadActiveBorrowings();
+            },
+            color: AppColors.primary,
+            backgroundColor: Colors.white,
+            displacement: 40,
+            strokeWidth: 3,
+            child: Column(
+              children: [
+                _buildSearchBar(state),
+                _buildSummaryCard(state),
+                Expanded(child: _buildContent(state)),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   void _handleStateChanges(BuildContext context, StaffPengembalianState state) {
     ScaffoldMessenger.of(context).removeCurrentSnackBar();
@@ -143,9 +142,19 @@ Widget build(BuildContext context) {
 
     if (state is StaffPengembalianLoaded) {
       totalActive = state.allBorrowings.length;
+
+      // FIXED: Normalisasi tanggal untuk perhitungan keterlambatan yang akurat
+      final today = DateTime.now();
+      final todayDate = DateTime(today.year, today.month, today.day);
+
       totalLate = state.allBorrowings.where((p) {
         final tanggalKembali = DateTime.parse(p['tanggal_kembali_rencana']);
-        return DateTime.now().isAfter(tanggalKembali);
+        final dueDate = DateTime(
+          tanggalKembali.year,
+          tanggalKembali.month,
+          tanggalKembali.day,
+        );
+        return todayDate.isAfter(dueDate);
       }).length;
     }
 
@@ -178,18 +187,17 @@ Widget build(BuildContext context) {
                 Text(
                   'Peminjaman Aktif',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.9),
-                      ),
+                    color: Colors.white.withOpacity(0.9),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
                     Text(
                       '$totalActive Total',
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                color: Colors.white,
-                              ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.headlineSmall?.copyWith(color: Colors.white),
                     ),
                     if (totalLate > 0) ...[
                       const SizedBox(width: 16),
@@ -232,62 +240,56 @@ Widget build(BuildContext context) {
     );
   }
 
-Widget _buildContent(StaffPengembalianState state) {
-  if (state is StaffPengembalianLoading) {
-    return const Center(child: CircularProgressIndicator());
-  }
+  Widget _buildContent(StaffPengembalianState state) {
+    if (state is StaffPengembalianLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-  if (state is StaffPengembalianLoaded) {
-    if (state.filteredBorrowings.isEmpty) {
-      // PENTING: Wrap dengan ListView agar pull-to-refresh tetap bisa digunakan
+    if (state is StaffPengembalianLoaded) {
+      if (state.filteredBorrowings.isEmpty) {
+        return ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.5,
+              child: _buildEmptyState(state),
+            ),
+          ],
+        );
+      }
+
+      return ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+        itemCount: state.filteredBorrowings.length,
+        itemBuilder: (context, index) {
+          final peminjaman = state.filteredBorrowings[index];
+          return _buildPeminjamanCard(peminjaman);
+        },
+      );
+    }
+
+    if (state is StaffPengembalianError) {
       return ListView(
-        physics: const AlwaysScrollableScrollPhysics(), // Ini penting!
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           SizedBox(
             height: MediaQuery.of(context).size.height * 0.5,
-            child: _buildEmptyState(state),
+            child: _buildErrorState(state),
           ),
         ],
       );
     }
 
-    return ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(), // Ini juga penting!
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-      itemCount: state.filteredBorrowings.length,
-      itemBuilder: (context, index) {
-        final peminjaman = state.filteredBorrowings[index];
-        return _buildPeminjamanCard(peminjaman);
-      },
-    );
+    return const SizedBox.shrink();
   }
-
-  if (state is StaffPengembalianError) {
-    // Wrap dengan ListView agar tetap bisa pull-to-refresh
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        SizedBox(
-          height: MediaQuery.of(context).size.height * 0.5,
-          child: _buildErrorState(state),
-        ),
-      ],
-    );
-  }
-
-  return const SizedBox.shrink();
-}
 
   Widget _buildEmptyState(StaffPengembalianLoaded state) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.check_circle_outline,
-            size: 80,
-            color: AppColors.success,
-          ),
+          Icon(Icons.check_circle_outline, size: 80, color: AppColors.success),
           const SizedBox(height: 16),
           Text(
             state.searchQuery.isNotEmpty
@@ -312,11 +314,7 @@ Widget _buildContent(StaffPengembalianState state) {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.error_outline,
-            size: 80,
-            color: AppColors.error,
-          ),
+          const Icon(Icons.error_outline, size: 80, color: AppColors.error),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -346,11 +344,21 @@ Widget _buildContent(StaffPengembalianState state) {
     final user = peminjaman['users'];
     final alat = peminjaman['alat'];
     final tanggalPinjam = DateTime.parse(peminjaman['tanggal_pinjam']);
-    final tanggalKembaliRencana =
-        DateTime.parse(peminjaman['tanggal_kembali_rencana']);
+    final tanggalKembaliRencana = DateTime.parse(
+      peminjaman['tanggal_kembali_rencana'],
+    );
+
+    // FIXED: Normalisasi tanggal untuk perhitungan yang akurat
     final today = DateTime.now();
-    final isLate = today.isAfter(tanggalKembaliRencana);
-    final daysLate = isLate ? today.difference(tanggalKembaliRencana).inDays : 0;
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final dueDate = DateTime(
+      tanggalKembaliRencana.year,
+      tanggalKembaliRencana.month,
+      tanggalKembaliRencana.day,
+    );
+
+    final isLate = todayDate.isAfter(dueDate);
+    final daysLate = isLate ? todayDate.difference(dueDate).inDays : 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -393,8 +401,10 @@ Widget _buildContent(StaffPengembalianState state) {
                 if (isLate) ...[
                   const SizedBox(height: 8),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.error.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(8),
@@ -402,8 +412,11 @@ Widget _buildContent(StaffPengembalianState state) {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.warning,
-                            size: 14, color: AppColors.error),
+                        const Icon(
+                          Icons.warning,
+                          size: 14,
+                          color: AppColors.error,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           'Terlambat $daysLate hari',
@@ -522,17 +535,14 @@ Widget _buildContent(StaffPengembalianState state) {
                           DateFormat('dd MMM yyyy').format(tanggalPinjam),
                         ),
                       ),
-                      Container(
-                        width: 1,
-                        height: 30,
-                        color: AppColors.border,
-                      ),
+                      Container(width: 1, height: 30, color: AppColors.border),
                       Expanded(
                         child: _buildDateInfo(
                           Icons.event,
                           'Jatuh Tempo',
-                          DateFormat('dd MMM yyyy')
-                              .format(tanggalKembaliRencana),
+                          DateFormat(
+                            'dd MMM yyyy',
+                          ).format(tanggalKembaliRencana),
                         ),
                       ),
                     ],
@@ -568,10 +578,7 @@ Widget _buildContent(StaffPengembalianState state) {
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 11,
-            color: AppColors.textTertiary,
-          ),
+          style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
         ),
         const SizedBox(height: 2),
         Text(
@@ -624,13 +631,13 @@ Widget _buildContent(StaffPengembalianState state) {
               _buildDetailRow('Peminjam', user['nama'] ?? 'Unknown'),
               _buildDetailRow('Email', user['email'] ?? '-'),
               _buildDetailRow('Alat', alat['nama_alat'] ?? 'Unknown'),
-              _buildDetailRow(
-                  'Kategori', alat['kategori']?['nama'] ?? '-'),
-              _buildDetailRow(
-                  'Jumlah', '${peminjaman['jumlah_pinjam']} unit'),
+              _buildDetailRow('Kategori', alat['kategori']?['nama'] ?? '-'),
+              _buildDetailRow('Jumlah', '${peminjaman['jumlah_pinjam']} unit'),
               _buildDetailRow('Tanggal Pinjam', peminjaman['tanggal_pinjam']),
-              _buildDetailRow('Tanggal Kembali',
-                  peminjaman['tanggal_kembali_rencana']),
+              _buildDetailRow(
+                'Tanggal Kembali',
+                peminjaman['tanggal_kembali_rencana'],
+              ),
               const Divider(color: AppColors.border),
               const Text(
                 'Keperluan:',
@@ -701,14 +708,15 @@ Widget _buildContent(StaffPengembalianState state) {
 
   void _showPengembalianDialog(Map<String, dynamic> peminjaman) async {
     final cubit = context.read<StaffPengembalianCubit>();
-    
+
     // Get setting denda
     final settingDenda = await cubit.getSettingDenda();
 
     if (!mounted) return;
 
-    final tanggalKembaliRencana =
-        DateTime.parse(peminjaman['tanggal_kembali_rencana']);
+    final tanggalKembaliRencana = DateTime.parse(
+      peminjaman['tanggal_kembali_rencana'],
+    );
 
     String selectedKondisi = 'baik';
     final catatanController = TextEditingController();
@@ -717,7 +725,7 @@ Widget _buildContent(StaffPengembalianState state) {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
-          // Calculate denda
+          // Calculate denda - INI AKAN RESPONSIF KARENA DIPANGGIL SETIAP REBUILD
           final dendaCalculation = cubit.calculateDenda(
             tanggalKembaliRencana: tanggalKembaliRencana,
             kondisi: selectedKondisi,
@@ -767,9 +775,13 @@ Widget _buildContent(StaffPengembalianState state) {
                     items: const [
                       DropdownMenuItem(value: 'baik', child: Text('Baik')),
                       DropdownMenuItem(
-                          value: 'rusak_ringan', child: Text('Rusak Ringan')),
+                        value: 'rusak_ringan',
+                        child: Text('Rusak Ringan'),
+                      ),
                       DropdownMenuItem(
-                          value: 'rusak_berat', child: Text('Rusak Berat')),
+                        value: 'rusak_berat',
+                        child: Text('Rusak Berat'),
+                      ),
                       DropdownMenuItem(value: 'hilang', child: Text('Hilang')),
                     ],
                     onChanged: (value) {
@@ -852,12 +864,16 @@ Widget _buildContent(StaffPengembalianState state) {
                         color: AppColors.warning.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                            color: AppColors.warning.withOpacity(0.3)),
+                          color: AppColors.warning.withOpacity(0.3),
+                        ),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.info_outline,
-                              color: AppColors.warning, size: 20),
+                          Icon(
+                            Icons.info_outline,
+                            color: AppColors.warning,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -964,8 +980,8 @@ Widget _buildContent(StaffPengembalianState state) {
 
   String _formatCurrency(int amount) {
     return amount.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]}.',
-        );
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]}.',
+    );
   }
 }

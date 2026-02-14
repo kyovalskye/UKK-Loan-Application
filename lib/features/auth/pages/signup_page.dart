@@ -165,7 +165,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
                     // Role Dropdown
                     DropdownButtonFormField<String>(
-                      value: _selectedRole,
+                      initialValue: _selectedRole,
                       decoration: const InputDecoration(
                         labelText: 'Role',
                         prefixIcon: Icon(Icons.badge_outlined),

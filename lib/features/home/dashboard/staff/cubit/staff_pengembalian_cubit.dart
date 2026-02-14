@@ -77,25 +77,39 @@ class StaffPengembalianCubit extends Cubit<StaffPengembalianState> {
         'denda_per_hari': (response['denda_per_hari'] as num).toDouble(),
         'denda_rusak_ringan': (response['denda_rusak_ringan'] as num).toDouble(),
         'denda_rusak_berat': (response['denda_rusak_berat'] as num).toDouble(),
+        'denda_hilang_persen': response['denda_hilang_persen'] as int,
+        'maksimal_hari_pinjam': response['maksimal_hari_pinjam'] as int,
       };
     } catch (e) {
       return {
-        'denda_per_hari': 5000.0,
-        'denda_rusak_ringan': 50000.0,
-        'denda_rusak_berat': 200000.0,
+        'denda_per_hari': 10000.0,
+        'denda_rusak_ringan': 100000.0,
+        'denda_rusak_berat': 500000.0,
+        'denda_hilang_persen': 100,
+        'maksimal_hari_pinjam': 7,
       };
     }
   }
 
-  /// Calculate denda
+  /// Calculate denda - FIXED: Responsif terhadap perubahan waktu sistem
   Map<String, dynamic> calculateDenda({
     required DateTime tanggalKembaliRencana,
     required String kondisi,
     required Map<String, dynamic> settingDenda,
   }) {
+    // Normalisasi tanggal agar hanya membandingkan hari (tanpa jam/menit/detik)
     final today = DateTime.now();
-    final keterlambatan = today.isAfter(tanggalKembaliRencana)
-        ? today.difference(tanggalKembaliRencana).inDays
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final dueDate = DateTime(
+      tanggalKembaliRencana.year,
+      tanggalKembaliRencana.month,
+      tanggalKembaliRencana.day,
+    );
+
+    // Hitung keterlambatan: jika hari ini LEBIH dari tanggal jatuh tempo
+    // Contoh: jatuh tempo 13 Feb, hari ini 14 Feb = terlambat 1 hari
+    final keterlambatan = todayDate.isAfter(dueDate)
+        ? todayDate.difference(dueDate).inDays
         : 0;
 
     final dendaPerHari = settingDenda['denda_per_hari'] as double;
@@ -110,7 +124,11 @@ class StaffPengembalianCubit extends Cubit<StaffPengembalianState> {
         dendaKerusakan = settingDenda['denda_rusak_berat'] as double;
         break;
       case 'hilang':
-        dendaKerusakan = 500000; // atau bisa dari harga alat
+        // FIXED: Ambil dari setting_denda, bukan hardcoded
+        final dendaHilangPersen = (settingDenda['denda_hilang_persen'] ?? 100) as int;
+        // Untuk sementara gunakan denda_rusak_berat * (persen/100) jika tidak ada harga alat
+        // Atau bisa disesuaikan dengan harga alat jika ada field harga_alat
+        dendaKerusakan = (settingDenda['denda_rusak_berat'] as double) * (dendaHilangPersen / 100);
         break;
       default:
         dendaKerusakan = 0;

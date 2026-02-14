@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
-import 'package:rentalify/features/home/dashboard/admin/admin_dashboard.dart';
 import 'package:rentalify/features/home/dashboard/admin/cubit/admin_crud_kategori_cubit.dart';
 import 'package:rentalify/features/home/dashboard/admin/cubit/admin_crud_peminjaman_cubit.dart';
 import 'package:rentalify/features/home/dashboard/admin/cubit/admin_crud_pengembalian_cubit.dart';
@@ -11,6 +10,7 @@ import 'package:rentalify/features/home/dashboard/admin/pages/admin_crud_kategor
 import 'package:rentalify/features/home/dashboard/admin/pages/admin_crud_peminjaman_page.dart';
 import 'package:rentalify/features/home/dashboard/admin/pages/admin_crud_pengembalian_page.dart';
 import 'package:rentalify/features/home/dashboard/admin/pages/admin_crud_user_page.dart';
+import 'package:rentalify/features/home/dashboard/admin/pages/admin_dashboard_page.dart';
 import 'package:rentalify/features/home/dashboard/admin/pages/admin_laporan_page.dart';
 import 'package:rentalify/features/home/dashboard/admin/pages/admin_log_aktivitas_page.dart';
 import 'package:rentalify/features/home/dashboard/admin/widgets/admin_drawer.dart';
@@ -39,17 +39,8 @@ class _AdminShellPageState extends State<AdminShellPage> {
   Widget _buildPage(int index) {
     switch (index) {
       case 0:
-        return AdminDashboard(
-          statistics: {
-            'totalAlat': 45,
-            'totalTersedia': 32,
-            'totalDipinjam': 10,
-            'terlambat': 3,
-            'totalPeminjaman': 156,
-            'pendingApproval': 5,
-            'activePeminjaman': 10,
-          },
-        );
+        // ✅ Menggunakan AdminDashboardPage yang sudah punya cubit sendiri
+        return const AdminDashboardPage();
       case 1:
         return const CrudAlatPage();
       case 2:
@@ -82,7 +73,6 @@ class _AdminShellPageState extends State<AdminShellPage> {
         BlocProvider(
           create: (_) => CrudPeminjamanCubit()..fetchPeminjaman(),
         ),
-        // ✅ FIXED: Tidak ada parameter - PengembalianCubit sudah punya Supabase instance internal
         BlocProvider(
           create: (_) => PengembalianCubit()..loadPengembalian(),
         ),

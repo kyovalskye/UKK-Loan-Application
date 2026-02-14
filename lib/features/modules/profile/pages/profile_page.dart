@@ -1,11 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rentalify/core/services/supabase_service.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
+import 'package:rentalify/features/home/dashboard/admin/pages/admin_edit_profile_page.dart';
 import '../../../auth/cubit/auth_cubit.dart';
 import '../../../auth/cubit/auth_state.dart';
+import '../pages/edit_profile_page.dart';
+import '../../profile/cubit/profile_cubit.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
+
+  void _navigateToEditProfile(BuildContext context, bool isAdmin) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MultiBlocProvider(
+          providers: [
+            BlocProvider.value(
+              value: context.read<AuthCubit>(),
+            ),
+            BlocProvider(
+              create: (context) => ProfileCubit(
+                context.read<SupabaseService>(),
+                context.read<AuthCubit>(),
+              ),
+            ),
+          ],
+          child: isAdmin
+              ? const AdminEditProfilePage()
+              : const EditProfilePage(),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,6 +44,8 @@ class ProfilePage extends StatelessWidget {
       ),
       body: BlocBuilder<AuthCubit, AuthState>(
         builder: (context, state) {
+          final photoUrl = state.userData?['foto_url'];
+          
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
@@ -35,30 +65,44 @@ class ProfilePage extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.3),
                         shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          _getInitials(state.userName ?? 'User'),
-                          style: const TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.5),
+                          width: 2,
                         ),
+                      ),
+                      child: ClipOval(
+                        child: photoUrl != null && photoUrl.isNotEmpty
+                            ? Image.network(
+                                photoUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return _buildDefaultAvatar(state.userName);
+                                },
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                    ),
+                                  );
+                                },
+                              )
+                            : _buildDefaultAvatar(state.userName),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Name
                     Text(
                       state.userName ?? 'User',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            color: Colors.white,
-                          ),
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineMedium
+                          ?.copyWith(color: Colors.white),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 4),
-                    
+
                     // Email
                     Text(
                       state.userEmail ?? 'email@example.com',
@@ -68,7 +112,7 @@ class ProfilePage extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // Role Badge
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -116,39 +160,25 @@ class ProfilePage extends StatelessWidget {
                 icon: Icons.person_outline,
                 title: 'Edit Profile',
                 subtitle: 'Ubah informasi profil Anda',
-                onTap: () {
-                  // TODO: Navigate to edit profile
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Fitur Edit Profile coming soon!'),
-                    ),
-                  );
-                },
+                onTap: () => _navigateToEditProfile(context, state.isAdmin),
               ),
-              const SizedBox(height: 12),
-
-              // Change Password
-              _buildMenuItem(
-                context,
-                icon: Icons.lock_outline,
-                title: 'Ubah Password',
-                subtitle: 'Ganti password akun Anda',
-                onTap: () {
-                  // TODO: Navigate to change password
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Fitur Ubah Password coming soon!'),
-                    ),
-                  );
-                },
-              ),
+              
+              // Change Password - Only shown separately for Admin in navbar view
+              // (Admin in drawer will see this in AdminEditProfilePage)
+              if (state.isAdmin) ...[
+                const SizedBox(height: 12),
+                _buildMenuItem(
+                  context,
+                  icon: Icons.lock_outline,
+                  title: 'Ubah Password',
+                  subtitle: 'Ganti password akun Anda',
+                  onTap: () => _navigateToEditProfile(context, true),
+                ),
+              ],
               const SizedBox(height: 24),
 
               // About Section
-              Text(
-                'Tentang',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+              Text('Tentang', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 12),
 
               // App Version
@@ -199,6 +229,19 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
+  Widget _buildDefaultAvatar(String? name) {
+    return Center(
+      child: Text(
+        _getInitials(name ?? 'User'),
+        style: const TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
   Widget _buildMenuItem(
     BuildContext context, {
     required IconData icon,
@@ -228,11 +271,7 @@ class ProfilePage extends StatelessWidget {
                     color: AppColors.primary.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(
-                    icon,
-                    color: AppColors.primary,
-                    size: 20,
-                  ),
+                  child: Icon(icon, color: AppColors.primary, size: 20),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -310,17 +349,12 @@ class ProfilePage extends StatelessWidget {
           ),
           title: Row(
             children: [
-              Icon(
-                Icons.logout,
-                color: AppColors.error,
-              ),
+              Icon(Icons.logout, color: AppColors.error),
               const SizedBox(width: 12),
               const Text('Konfirmasi Logout'),
             ],
           ),
-          content: const Text(
-            'Apakah Anda yakin ingin keluar dari aplikasi?',
-          ),
+          content: const Text('Apakah Anda yakin ingin keluar dari aplikasi?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
@@ -328,12 +362,10 @@ class ProfilePage extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(dialogContext); // Close dialog
+                Navigator.pop(dialogContext);
                 context.read<AuthCubit>().signOut();
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
               child: const Text('Logout'),
             ),
           ],

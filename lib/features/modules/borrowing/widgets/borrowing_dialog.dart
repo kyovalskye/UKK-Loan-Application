@@ -8,10 +8,7 @@ import '../cubit/borrowing_state.dart';
 class BorrowingDialog extends StatefulWidget {
   final Map<String, dynamic> alat;
 
-  const BorrowingDialog({
-    super.key,
-    required this.alat,
-  });
+  const BorrowingDialog({super.key, required this.alat});
 
   @override
   State<BorrowingDialog> createState() => _BorrowingDialogState();
@@ -25,9 +22,11 @@ class _BorrowingDialogState extends State<BorrowingDialog> {
 
   @override
   void initState() {
-      super.initState();
-    // Default tanggal mulai = besok
-    _selectedDate = DateTime.now().add(const Duration(days: 1));
+    super.initState();
+    // FIX: Default tanggal mulai = hari ini (bukan besok)
+    // Normalisasi ke midnight untuk menghindari bug date picker
+    final now = DateTime.now();
+    _selectedDate = DateTime(now.year, now.month, now.day);
   }
 
   @override
@@ -60,7 +59,9 @@ class _BorrowingDialogState extends State<BorrowingDialog> {
               Navigator.pop(context, true); // Return true untuk refresh
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(state.successMessage ?? 'Berhasil mengajukan peminjaman'),
+                  content: Text(
+                    state.successMessage ?? 'Berhasil mengajukan peminjaman',
+                  ),
                   backgroundColor: AppColors.success,
                 ),
               );
@@ -112,17 +113,21 @@ class _BorrowingDialogState extends State<BorrowingDialog> {
                               ),
                             ),
                             IconButton(
-                              onPressed: isSubmitting ? null : () => Navigator.pop(context),
-                              icon: const Icon(Icons.close, color: Colors.white),
+                              onPressed: isSubmitting
+                                  ? null
+                                  : () => Navigator.pop(context),
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                              ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 8),
                         Text(
                           widget.alat['nama_alat'] ?? 'Unknown',
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: Colors.white.withOpacity(0.9),
-                              ),
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(color: Colors.white.withOpacity(0.9)),
                         ),
                       ],
                     ),
@@ -141,7 +146,9 @@ class _BorrowingDialogState extends State<BorrowingDialog> {
                         ),
                         const SizedBox(height: 8),
                         InkWell(
-                          onTap: isSubmitting ? null : () => _selectDate(context),
+                          onTap: isSubmitting
+                              ? null
+                              : () => _selectDate(context),
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
                             padding: const EdgeInsets.all(16),
@@ -159,15 +166,26 @@ class _BorrowingDialogState extends State<BorrowingDialog> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        DateFormat('EEEE', 'id_ID').format(_selectedDate!),
-                                        style: Theme.of(context).textTheme.bodySmall,
+                                        DateFormat(
+                                          'EEEE',
+                                          'id_ID',
+                                        ).format(_selectedDate!),
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.bodySmall,
                                       ),
                                       Text(
-                                        DateFormat('dd MMMM yyyy', 'id_ID').format(_selectedDate!),
-                                        style: Theme.of(context).textTheme.titleMedium,
+                                        DateFormat(
+                                          'dd MMMM yyyy',
+                                          'id_ID',
+                                        ).format(_selectedDate!),
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleMedium,
                                       ),
                                     ],
                                   ),
@@ -193,9 +211,8 @@ class _BorrowingDialogState extends State<BorrowingDialog> {
                             ),
                             Text(
                               'Max 7 hari',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.warning,
-                                  ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppColors.warning),
                             ),
                           ],
                         ),
@@ -210,25 +227,30 @@ class _BorrowingDialogState extends State<BorrowingDialog> {
                           child: Column(
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     '$_jumlahHari Hari',
-                                    style: Theme.of(context).textTheme.headlineMedium,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.headlineMedium,
                                   ),
                                   Row(
                                     children: [
                                       _buildCounterButton(
                                         icon: Icons.remove,
                                         onTap: _jumlahHari > 1 && !isSubmitting
-                                            ? () => setState(() => _jumlahHari--)
+                                            ? () =>
+                                                  setState(() => _jumlahHari--)
                                             : null,
                                       ),
                                       const SizedBox(width: 12),
                                       _buildCounterButton(
                                         icon: Icons.add,
                                         onTap: _jumlahHari < 7 && !isSubmitting
-                                            ? () => setState(() => _jumlahHari++)
+                                            ? () =>
+                                                  setState(() => _jumlahHari++)
                                             : null,
                                       ),
                                     ],
@@ -241,7 +263,9 @@ class _BorrowingDialogState extends State<BorrowingDialog> {
                                   activeTrackColor: AppColors.primary,
                                   inactiveTrackColor: AppColors.border,
                                   thumbColor: AppColors.primary,
-                                  overlayColor: AppColors.primary.withOpacity(0.2),
+                                  overlayColor: AppColors.primary.withOpacity(
+                                    0.2,
+                                  ),
                                 ),
                                 child: Slider(
                                   value: _jumlahHari.toDouble(),
@@ -250,7 +274,9 @@ class _BorrowingDialogState extends State<BorrowingDialog> {
                                   divisions: 6,
                                   onChanged: isSubmitting
                                       ? null
-                                      : (value) => setState(() => _jumlahHari = value.toInt()),
+                                      : (value) => setState(
+                                          () => _jumlahHari = value.toInt(),
+                                        ),
                                 ),
                               ),
                             ],
@@ -264,7 +290,9 @@ class _BorrowingDialogState extends State<BorrowingDialog> {
                           decoration: BoxDecoration(
                             color: AppColors.info.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.info.withOpacity(0.3)),
+                            border: Border.all(
+                              color: AppColors.info.withOpacity(0.3),
+                            ),
                           ),
                           child: Row(
                             children: [
@@ -280,16 +308,20 @@ class _BorrowingDialogState extends State<BorrowingDialog> {
                                   children: [
                                     Text(
                                       'Tanggal Kembali',
-                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                            color: AppColors.info,
-                                          ),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(color: AppColors.info),
                                     ),
                                     Text(
-                                      DateFormat('EEEE, dd MMMM yyyy', 'id_ID')
-                                          .format(_tanggalKembali),
-                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                            color: AppColors.info,
-                                          ),
+                                      DateFormat(
+                                        'EEEE, dd MMMM yyyy',
+                                        'id_ID',
+                                      ).format(_tanggalKembali),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(color: AppColors.info),
                                     ),
                                   ],
                                 ),
@@ -324,12 +356,15 @@ class _BorrowingDialogState extends State<BorrowingDialog> {
                               style: IconButton.styleFrom(
                                 backgroundColor: AppColors.card,
                                 foregroundColor: AppColors.primary,
-                                disabledBackgroundColor: AppColors.card.withOpacity(0.5),
+                                disabledBackgroundColor: AppColors.card
+                                    .withOpacity(0.5),
                               ),
                             ),
                             Expanded(
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
                                   color: AppColors.card,
@@ -338,19 +373,23 @@ class _BorrowingDialogState extends State<BorrowingDialog> {
                                 ),
                                 child: Text(
                                   '$_jumlahPinjam',
-                                  style: Theme.of(context).textTheme.headlineMedium,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.headlineMedium,
                                 ),
                               ),
                             ),
                             IconButton(
-                              onPressed: _jumlahPinjam < _maxJumlah && !isSubmitting
+                              onPressed:
+                                  _jumlahPinjam < _maxJumlah && !isSubmitting
                                   ? () => setState(() => _jumlahPinjam++)
                                   : null,
                               icon: const Icon(Icons.add_circle_outline),
                               style: IconButton.styleFrom(
                                 backgroundColor: AppColors.card,
                                 foregroundColor: AppColors.primary,
-                                disabledBackgroundColor: AppColors.card.withOpacity(0.5),
+                                disabledBackgroundColor: AppColors.card
+                                    .withOpacity(0.5),
                               ),
                             ),
                           ],
@@ -386,7 +425,9 @@ class _BorrowingDialogState extends State<BorrowingDialog> {
                                     width: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
                                     ),
                                   )
                                 : const Text('Ajukan Peminjaman'),
@@ -414,7 +455,9 @@ class _BorrowingDialogState extends State<BorrowingDialog> {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: onTap != null ? AppColors.primary.withOpacity(0.2) : AppColors.surface,
+          color: onTap != null
+              ? AppColors.primary.withOpacity(0.2)
+              : AppColors.surface,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
@@ -428,13 +471,16 @@ class _BorrowingDialogState extends State<BorrowingDialog> {
 
   Future<void> _selectDate(BuildContext context) async {
     final now = DateTime.now();
-    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+
+    // FIX BUG DATE PICKER - Normalisasi tanggal ke midnight (00:00:00)
+    // Ini memastikan hari ini bisa dipilih
+    final today = DateTime(now.year, now.month, now.day - 0);
     final maxDate = DateTime(now.year, now.month + 1, now.day);
 
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? tomorrow,
-      firstDate: tomorrow, // Tidak bisa pilih kemarin atau hari ini
+      initialDate: _selectedDate ?? today,
+      firstDate: today, // FIX: Sekarang bisa pilih hari ini!
       lastDate: maxDate,
       builder: (context, child) {
         return Theme(
@@ -470,11 +516,11 @@ class _BorrowingDialogState extends State<BorrowingDialog> {
 
     // Submit peminjaman
     context.read<BorrowingCubit>().submitPeminjamanFromDialog(
-          alat: widget.alat,
-          tanggalPinjam: _selectedDate!,
-          jumlahHari: _jumlahHari,
-          jumlahPinjam: _jumlahPinjam,
-          keperluan: _keperluanController.text.trim(),
-        );
+      alat: widget.alat,
+      tanggalPinjam: _selectedDate!,
+      jumlahHari: _jumlahHari,
+      jumlahPinjam: _jumlahPinjam,
+      keperluan: _keperluanController.text.trim(),
+    );
   }
 }

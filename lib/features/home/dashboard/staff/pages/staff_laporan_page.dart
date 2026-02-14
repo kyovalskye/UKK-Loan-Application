@@ -1,186 +1,348 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
+import 'package:rentalify/features/home/dashboard/staff/cubit/staff_laporan_cubit.dart';
+import 'package:rentalify/features/home/dashboard/staff/cubit/staff_laporan_state.dart';
 
-class StaffLaporanPage extends StatefulWidget {
+class StaffLaporanPage extends StatelessWidget {
   const StaffLaporanPage({super.key});
 
   @override
-  State<StaffLaporanPage> createState() => _StaffLaporanPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => LaporanCubit(),
+      child: const _StaffLaporanPageContent(),
+    );
+  }
 }
 
-class _StaffLaporanPageState extends State<StaffLaporanPage> {
-  String _selectedLaporanType = 'peminjaman';
+class _StaffLaporanPageContent extends StatefulWidget {
+  const _StaffLaporanPageContent();
+
+  @override
+  State<_StaffLaporanPageContent> createState() =>
+      _StaffLaporanPageContentState();
+}
+
+class _StaffLaporanPageContentState extends State<_StaffLaporanPageContent> {
+  String _selectedLaporanType = 'all';
   DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
   DateTime _endDate = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-load statistik saat pertama kali dibuka
+    _loadStatistik();
+  }
+
+  void _loadStatistik() {
+    context.read<LaporanCubit>().loadLaporan(
+      jenisLaporan: _selectedLaporanType,
+      startDate: _startDate,
+      endDate: _endDate,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Laporan'),
-        elevation: 0,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Welcome Card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.assessment,
-                  color: Colors.white,
-                  size: 32,
+      appBar: AppBar(title: const Text('Laporan'), elevation: 0),
+      body: BlocListener<LaporanCubit, LaporanState>(
+        listener: (context, state) {
+          if (state is LaporanGenerating) {
+            // Show progress dialog
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (dialogContext) => PopScope(
+                canPop: false,
+                child: AlertDialog(
+                  backgroundColor: AppColors.surface,
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(color: AppColors.primary),
+                      const SizedBox(height: 16),
+                      Text(state.message),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  'Laporan Peminjaman',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Export dan analisis data peminjaman',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.9),
-                      ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+              ),
+            );
+          } else if (state is LaporanGenerated) {
+            // Tutup loading dialog dengan root navigator
+            Navigator.of(context, rootNavigator: true).pop();
 
-          // Filter Card
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: AppColors.cardGradient,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('PDF berhasil dibuat dan dibuka di browser'),
+                backgroundColor: AppColors.success,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          } else if (state is LaporanError) {
+            // Tutup loading dialog dengan root navigator
+            if (Navigator.canPop(context)) {
+              Navigator.of(context, rootNavigator: true).pop();
+            }
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          }
+        },
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Welcome Card
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.assessment, color: Colors.white, size: 32),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Laporan Peminjaman',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.headlineMedium?.copyWith(color: Colors.white),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Export dan analisis data peminjaman',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Filter Laporan',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+            const SizedBox(height: 16),
+
+            // Filter Card
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: AppColors.cardGradient,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Filter Laporan',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                
-                // Jenis Laporan
-                const Text(
-                  'Jenis Laporan',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
+                  const SizedBox(height: 16),
+
+                  // Jenis Laporan
+                  const Text(
+                    'Jenis Laporan',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedLaporanType,
-                      isExpanded: true,
-                      dropdownColor: AppColors.surface,
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'peminjaman',
-                          child: Text('Laporan Peminjaman'),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceLight,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedLaporanType,
+                        isExpanded: true,
+                        dropdownColor: AppColors.surface,
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
                         ),
-                        DropdownMenuItem(
-                          value: 'pengembalian',
-                          child: Text('Laporan Pengembalian'),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'all',
+                            child: Text('Semua Laporan'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'peminjaman',
+                            child: Text('Laporan Peminjaman'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'pengembalian',
+                            child: Text('Laporan Pengembalian'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'denda',
+                            child: Text('Laporan Denda'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedLaporanType = value!;
+                          });
+                          // Auto-load statistik saat jenis laporan berubah
+                          _loadStatistik();
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Date Range
+                  const Text(
+                    'Periode Laporan',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDateButton(
+                          label: 'Dari',
+                          date: _startDate,
+                          onTap: () => _selectDate(context, true),
                         ),
-                        DropdownMenuItem(
-                          value: 'denda',
-                          child: Text('Laporan Denda'),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildDateButton(
+                          label: 'Sampai',
+                          date: _endDate,
+                          onTap: () => _selectDate(context, false),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Generate Button - Hanya untuk export PDF
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _exportToPdf,
+                      icon: const Icon(Icons.picture_as_pdf),
+                      label: const Text('Generate PDF'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Statistik Cards - Auto-load
+            BlocBuilder<LaporanCubit, LaporanState>(
+              builder: (context, state) {
+                if (state is LaporanLoading) {
+                  return Container(
+                    padding: const EdgeInsets.all(40),
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  );
+                }
+
+                if (state is LaporanLoaded) {
+                  if (state.data.isEmpty) {
+                    return Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: AppColors.cardGradient,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: const Column(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 48,
+                            color: AppColors.textTertiary,
+                          ),
+                          SizedBox(height: 12),
+                          Text(
+                            'Tidak ada data untuk periode ini',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return _buildStatistikSection(state.statistik);
+                }
+
+                if (state is LaporanError) {
+                  return Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: AppColors.cardGradient,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.error),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: AppColors.error,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          state.message,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.error,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
                       ],
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedLaporanType = value!;
-                        });
-                      },
                     ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                
-                // Date Range
-                const Text(
-                  'Periode Laporan',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildDateButton(
-                        label: 'Dari',
-                        date: _startDate,
-                        onTap: () => _selectDate(context, true),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildDateButton(
-                        label: 'Sampai',
-                        date: _endDate,
-                        onTap: () => _selectDate(context, false),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                
-                // Generate Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _generateLaporan,
-                    icon: const Icon(Icons.assessment),
-                    label: const Text('Generate Laporan'),
-                  ),
-                ),
-              ],
+                  );
+                }
+
+                return _buildStatistikSection({});
+              },
             ),
-          ),
-          const SizedBox(height: 16),
+            // const SizedBox(height: 16),
 
-          // Statistik Cards
-          _buildStatistikSection(),
-          const SizedBox(height: 16),
+            // Quick Actions
+            // _buildQuickActionsSection(),
+            // const SizedBox(height: 16),
 
-          // Quick Actions
-          _buildQuickActionsSection(),
-          const SizedBox(height: 16),
-
-          // Recent Reports
-          _buildRecentReportsSection(),
-          const SizedBox(height: 100), // Bottom padding for navbar
-        ],
+            // Recent Reports
+            // _buildRecentReportsSection(),
+            // const SizedBox(height: 100), // Bottom padding for navbar
+          ],
+        ),
       ),
     );
   }
@@ -235,7 +397,159 @@ class _StaffLaporanPageState extends State<StaffLaporanPage> {
     );
   }
 
-  Widget _buildStatistikSection() {
+  Widget _buildStatistikSection(Map<String, dynamic> statistik) {
+    if (_selectedLaporanType == 'all') {
+      return _buildStatistikAll(statistik);
+    } else if (_selectedLaporanType == 'peminjaman') {
+      return _buildStatistikPeminjaman(statistik);
+    } else if (_selectedLaporanType == 'pengembalian') {
+      return _buildStatistikPengembalian(statistik);
+    } else {
+      return _buildStatistikDenda(statistik);
+    }
+  }
+
+  Widget _buildStatistikAll(Map<String, dynamic> statistik) {
+    final totalDenda = statistik['total_denda'] ?? 0;
+    final formattedDenda = 'Rp ${(totalDenda / 1000).toStringAsFixed(0)}K';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Statistik Periode (Semua)',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Statistik Peminjaman
+        const Text(
+          'Peminjaman',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.assignment,
+                label: 'Dipinjam',
+                value: '${statistik['dipinjam'] ?? 0}',
+                color: AppColors.info,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.assignment_return,
+                label: 'Dikembalikan',
+                value: '${statistik['dikembalikan'] ?? 0}',
+                color: AppColors.success,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.warning,
+                label: 'Terlambat',
+                value: '${statistik['terlambat'] ?? 0}',
+                color: AppColors.error,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.cancel,
+                label: 'Ditolak',
+                value: '${statistik['ditolak'] ?? 0}',
+                color: AppColors.warning,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Statistik Pengembalian
+        const Text(
+          'Pengembalian',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.check_circle,
+                label: 'Tepat Waktu',
+                value: '${statistik['tepat_waktu'] ?? 0}',
+                color: AppColors.success,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.verified,
+                label: 'Kondisi Baik',
+                value: '${statistik['kondisi_baik'] ?? 0}',
+                color: AppColors.info,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Statistik Denda
+        const Text(
+          'Denda',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.receipt_long,
+                label: 'Transaksi Denda',
+                value: '${statistik['total_transaksi'] ?? 0}',
+                color: AppColors.warning,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.attach_money,
+                label: 'Total Denda',
+                value: formattedDenda,
+                color: AppColors.error,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatistikPeminjaman(Map<String, dynamic> statistik) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -254,7 +568,7 @@ class _StaffLaporanPageState extends State<StaffLaporanPage> {
               child: _buildStatCard(
                 icon: Icons.assignment,
                 label: 'Peminjaman',
-                value: '42',
+                value: '${statistik['dipinjam'] ?? 0}',
                 color: AppColors.info,
               ),
             ),
@@ -262,8 +576,8 @@ class _StaffLaporanPageState extends State<StaffLaporanPage> {
             Expanded(
               child: _buildStatCard(
                 icon: Icons.assignment_return,
-                label: 'Pengembalian',
-                value: '38',
+                label: 'Dikembalikan',
+                value: '${statistik['dikembalikan'] ?? 0}',
                 color: AppColors.success,
               ),
             ),
@@ -276,8 +590,109 @@ class _StaffLaporanPageState extends State<StaffLaporanPage> {
               child: _buildStatCard(
                 icon: Icons.warning,
                 label: 'Terlambat',
-                value: '5',
+                value: '${statistik['terlambat'] ?? 0}',
                 color: AppColors.error,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.cancel,
+                label: 'Ditolak',
+                value: '${statistik['ditolak'] ?? 0}',
+                color: AppColors.warning,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatistikPengembalian(Map<String, dynamic> statistik) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Statistik Periode',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.check_circle,
+                label: 'Tepat Waktu',
+                value: '${statistik['tepat_waktu'] ?? 0}',
+                color: AppColors.success,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.warning,
+                label: 'Terlambat',
+                value: '${statistik['terlambat'] ?? 0}',
+                color: AppColors.error,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.verified,
+                label: 'Kondisi Baik',
+                value: '${statistik['kondisi_baik'] ?? 0}',
+                color: AppColors.info,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.build,
+                label: 'Rusak',
+                value: '${statistik['rusak'] ?? 0}',
+                color: AppColors.warning,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatistikDenda(Map<String, dynamic> statistik) {
+    final totalDenda = statistik['total_denda'] ?? 0;
+    final formattedDenda = 'Rp ${(totalDenda / 1000).toStringAsFixed(0)}K';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Statistik Periode',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.receipt_long,
+                label: 'Total Transaksi',
+                value: '${statistik['total_transaksi'] ?? 0}',
+                color: AppColors.info,
               ),
             ),
             const SizedBox(width: 12),
@@ -285,8 +700,30 @@ class _StaffLaporanPageState extends State<StaffLaporanPage> {
               child: _buildStatCard(
                 icon: Icons.attach_money,
                 label: 'Total Denda',
-                value: 'Rp 75K',
+                value: formattedDenda,
                 color: AppColors.warning,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.check_circle,
+                label: 'Lunas',
+                value: '${statistik['lunas'] ?? 0}',
+                color: AppColors.success,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.pending,
+                label: 'Belum Lunas',
+                value: '${statistik['belum_lunas'] ?? 0}',
+                color: AppColors.error,
               ),
             ),
           ],
@@ -345,38 +782,22 @@ class _StaffLaporanPageState extends State<StaffLaporanPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Quick Actions',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        _buildActionButton(
-          icon: Icons.picture_as_pdf,
-          title: 'Export ke PDF',
-          subtitle: 'Download laporan dalam format PDF',
-          color: AppColors.error,
-          onTap: _exportToPdf,
-        ),
-        const SizedBox(height: 12),
-        _buildActionButton(
-          icon: Icons.table_chart,
-          title: 'Export ke Excel',
-          subtitle: 'Download laporan dalam format Excel',
-          color: AppColors.success,
-          onTap: _exportToExcel,
-        ),
-        const SizedBox(height: 12),
-        _buildActionButton(
-          icon: Icons.print,
-          title: 'Print Laporan',
-          subtitle: 'Cetak laporan secara langsung',
-          color: AppColors.info,
-          onTap: _printLaporan,
-        ),
+        // const Text(
+        //   'Quick Actions',
+        //   style: TextStyle(
+        //     fontSize: 16,
+        //     fontWeight: FontWeight.w600,
+        //     color: AppColors.textPrimary,
+        //   ),
+        // ),
+        // const SizedBox(height: 12),
+        // _buildActionButton(
+        //   icon: Icons.picture_as_pdf,
+        //   title: 'Export ke PDF',
+        //   subtitle: 'Download laporan dalam format PDF',
+        //   color: AppColors.error,
+        //   onTap: _exportToPdf,
+        // ),
       ],
     );
   }
@@ -448,38 +869,38 @@ class _StaffLaporanPageState extends State<StaffLaporanPage> {
     );
   }
 
-  Widget _buildRecentReportsSection() {
-    final recentReports = [
-      {
-        'title': 'Laporan Peminjaman - Januari 2024',
-        'date': '2024-01-31',
-        'type': 'peminjaman',
-        'size': '1.2 MB',
-      },
-      {
-        'title': 'Laporan Pengembalian - Desember 2023',
-        'date': '2023-12-31',
-        'type': 'pengembalian',
-        'size': '980 KB',
-      },
-    ];
+  // Widget _buildRecentReportsSection() {
+  // final recentReports = [
+  //   {
+  //     'title': 'Laporan Peminjaman - Januari 2024',
+  //     'date': '2024-01-31',
+  //     'type': 'peminjaman',
+  //     'size': '1.2 MB',
+  //   },
+  //   {
+  //     'title': 'Laporan Pengembalian - Desember 2023',
+  //     'date': '2023-12-31',
+  //     'type': 'pengembalian',
+  //     'size': '980 KB',
+  //   },
+  // ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Laporan Terbaru',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        ...recentReports.map((report) => _buildReportCard(report)),
-      ],
-    );
-  }
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       const Text(
+  //         'Laporan Terbaru',
+  //         style: TextStyle(
+  //           fontSize: 16,
+  //           fontWeight: FontWeight.w600,
+  //           color: AppColors.textPrimary,
+  //         ),
+  //       ),
+  //       const SizedBox(height: 12),
+  //       ...recentReports.map((report) => _buildReportCard(report)),
+  //     ],
+  //   );
+  // }
 
   Widget _buildReportCard(Map<String, dynamic> report) {
     return Container(
@@ -601,62 +1022,17 @@ class _StaffLaporanPageState extends State<StaffLaporanPage> {
           _endDate = picked;
         }
       });
+
+      // Auto-load statistik saat tanggal berubah
+      _loadStatistik();
     }
   }
 
-  void _generateLaporan() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Generate Laporan'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(color: AppColors.primary),
-            SizedBox(height: 16),
-            Text('Sedang membuat laporan...'),
-          ],
-        ),
-      ),
-    );
-
-    // Simulate generation
-    Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Laporan berhasil digenerate'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-    });
-  }
-
   void _exportToPdf() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Mengexport laporan ke PDF...'),
-        backgroundColor: AppColors.info,
-      ),
-    );
-  }
-
-  void _exportToExcel() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Mengexport laporan ke Excel...'),
-        backgroundColor: AppColors.info,
-      ),
-    );
-  }
-
-  void _printLaporan() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Mencetak laporan...'),
-        backgroundColor: AppColors.info,
-      ),
+    context.read<LaporanCubit>().generateAndPreviewPDF(
+      jenisLaporan: _selectedLaporanType,
+      startDate: _startDate,
+      endDate: _endDate,
     );
   }
 }

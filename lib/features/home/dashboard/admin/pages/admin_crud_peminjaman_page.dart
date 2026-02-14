@@ -562,7 +562,7 @@ class _CrudPeminjamanPageState extends State<CrudPeminjamanPage> {
 
                     if (isEdit) {
                       cubit.updatePeminjaman(
-                        id: peminjaman!.id,
+                        id: peminjaman.id,
                         idUser: selectedUserId!,
                         idAlat: selectedAlatId!,
                         tanggalPinjam: formattedPinjam,
@@ -616,7 +616,7 @@ class _CrudPeminjamanPageState extends State<CrudPeminjamanPage> {
             }
 
             return DropdownButtonFormField<String>(
-              value: selectedUserId,
+              initialValue: selectedUserId,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -659,7 +659,7 @@ class _CrudPeminjamanPageState extends State<CrudPeminjamanPage> {
             }
 
             return DropdownButtonFormField<int>(
-              value: selectedAlatId,
+              initialValue: selectedAlatId,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),

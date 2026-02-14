@@ -4,14 +4,13 @@ import 'package:rentalify/core/themes/app_colors.dart';
 import 'package:rentalify/features/auth/cubit/auth_cubit.dart';
 import 'package:rentalify/features/auth/cubit/auth_state.dart';
 import 'package:rentalify/features/home/dashboard/admin/pages/admin_shell_page.dart';
-import 'package:rentalify/features/home/dashboard/borrower/pages/borrower_pengembalian_page.dart';
+import 'package:rentalify/features/home/dashboard/borrower/pages/borrower_tanggungan_page.dart';
 import 'package:rentalify/features/home/dashboard/borrower/pages/borrowing_peminjaman_page.dart';
 import 'package:rentalify/features/home/dashboard/staff/pages/staff_approval_page.dart';
 import 'package:rentalify/features/home/dashboard/staff/pages/staff_laporan_page.dart';
 import 'package:rentalify/features/home/dashboard/staff/pages/staff_pengembalian_page.dart';
 import 'package:rentalify/features/home/pages/home_page.dart';
 import 'package:rentalify/features/modules/profile/pages/profile_page.dart';
-import '../../../core/services/supabase_service.dart';
 import '../widgets/bottom_nav_item.dart';
 
 class MainShellPage extends StatefulWidget {
@@ -59,7 +58,7 @@ class _MainShellPageState extends State<MainShellPage> {
         BottomNavItem(
           icon: Icons.assignment_return_outlined,
           activeIcon: Icons.assignment_return,
-          label: 'Pengembalian',
+          label: 'Peminjaman',
         ),
         BottomNavItem(
           icon: Icons.assessment_outlined,
@@ -74,7 +73,6 @@ class _MainShellPageState extends State<MainShellPage> {
       ];
     }
     
-    // Admin tidak pakai bottom navbar, jadi return empty
     return [];
   }
 
@@ -90,7 +88,6 @@ class _MainShellPageState extends State<MainShellPage> {
         profilePage,
       ];
     } else if (role == 'petugas') {
-      // ✅ FIXED: Langsung panggil StaffApprovalPage tanpa melalui HomePage
       return [
         const StaffApprovalPage(), // ← PERUBAHAN DI SINI
         const StaffPengembalianPage(),
@@ -99,7 +96,6 @@ class _MainShellPageState extends State<MainShellPage> {
       ];
     }
     
-    // Admin tidak pakai pages ini karena punya shell sendiri
     return [
       const HomePage(),
       _buildPlaceholderPage('Page 2'),
@@ -140,7 +136,6 @@ class _MainShellPageState extends State<MainShellPage> {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthCubit, AuthState>(
       builder: (context, state) {
-        // ⭐ PERUBAHAN UTAMA: Jika admin, return AdminShellPage langsung
         if (state.userRole == 'admin') {
           return const AdminShellPage();
         }

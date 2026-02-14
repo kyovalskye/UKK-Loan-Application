@@ -69,10 +69,12 @@ class CrudAlatCubit extends Cubit<CrudAlatState> {
           .select()
           .order('nama', ascending: true);
 
-      emit(CrudAlatLoaded(
-        List<Map<String, dynamic>>.from(alatRes),
-        kategoriList: List<Map<String, dynamic>>.from(kategoriRes),
-      ));
+      emit(
+        CrudAlatLoaded(
+          List<Map<String, dynamic>>.from(alatRes),
+          kategoriList: List<Map<String, dynamic>>.from(kategoriRes),
+        ),
+      );
     } catch (e) {
       emit(CrudAlatError(e.toString()));
     }
@@ -93,10 +95,12 @@ class CrudAlatCubit extends Cubit<CrudAlatState> {
           .order('nama', ascending: true);
 
       // Emit loaded state langsung tanpa loading
-      emit(CrudAlatLoaded(
-        List<Map<String, dynamic>>.from(alatRes),
-        kategoriList: List<Map<String, dynamic>>.from(kategoriRes),
-      ));
+      emit(
+        CrudAlatLoaded(
+          List<Map<String, dynamic>>.from(alatRes),
+          kategoriList: List<Map<String, dynamic>>.from(kategoriRes),
+        ),
+      );
     } catch (e) {
       // Silent error, tidak emit error state
       print('Error silent load: $e');
@@ -122,19 +126,63 @@ class CrudAlatCubit extends Cubit<CrudAlatState> {
         );
       }
 
-      await _supabase.from('alat').insert({
-        'nama_alat': namaAlat.trim(),
-        'id_kategori': idKategori,
-        'kondisi': kondisi,
-        'status': status,
-        'jumlah_total': jumlahTotal,
-        'jumlah_tersedia': jumlahTotal,
-        'foto_alat': fotoUrl,
-      });
+      // Cek apakah alat dengan nama (case-insensitive) dan kategori yang sama sudah ada
+      final existingRes = await _supabase
+          .from('alat')
+          .select()
+          .eq('id_kategori', idKategori);
 
-      emit(const CrudAlatSuccess('Alat berhasil ditambahkan'));
-      
-      // Langsung silent load tanpa delay
+      Map<String, dynamic>? existing;
+      for (final item in existingRes) {
+        final itemName = (item['nama_alat'] ?? '')
+            .toString()
+            .trim()
+            .toLowerCase();
+        if (itemName == namaAlat.trim().toLowerCase()) {
+          existing = Map<String, dynamic>.from(item);
+          break;
+        }
+      }
+    
+      if (existing != null) {
+        // Jika sudah ada: update jumlah (tambah stock) dan fields lain jika perlu
+        final int oldTotal = (existing['jumlah_total'] ?? 0) as int;
+        final int oldTersedia = (existing['jumlah_tersedia'] ?? 0) as int;
+        final newTotal = oldTotal + jumlahTotal;
+        final newTersedia = oldTersedia + jumlahTotal;
+
+        final updateMap = <String, dynamic>{
+          'nama_alat': namaAlat.trim(),
+          'kondisi': kondisi,
+          'status': status,
+          'jumlah_total': newTotal,
+          'jumlah_tersedia': newTersedia,
+          'updated_at': DateTime.now().toIso8601String(),
+        };
+
+        if (fotoUrl != null) updateMap['foto_alat'] = fotoUrl;
+
+        await _supabase
+            .from('alat')
+            .update(updateMap)
+            .eq('id_alat', existing['id_alat']);
+
+        emit(const CrudAlatSuccess('Alat sudah ada—stok diperbarui'));
+      } else {
+        await _supabase.from('alat').upsert({
+          'nama_alat': namaAlat.trim(),
+          'id_kategori': idKategori,
+          'kondisi': kondisi,
+          'status': status,
+          'jumlah_total': jumlahTotal,
+          'jumlah_tersedia': jumlahTotal,
+          'foto_alat': fotoUrl,
+        }, onConflict: 'nama_alat,id_kategori');
+
+        emit(const CrudAlatSuccess('Alat berhasil ditambahkan'));
+      }
+
+      // Refresh data
       await _silentLoadAlat();
     } catch (e) {
       emit(CrudAlatError(e.toString()));
@@ -163,19 +211,22 @@ class CrudAlatCubit extends Cubit<CrudAlatState> {
         );
       }
 
-      await _supabase.from('alat').update({
-        'nama_alat': namaAlat.trim(),
-        'id_kategori': idKategori,
-        'kondisi': kondisi,
-        'status': status,
-        'jumlah_total': jumlahTotal,
-        'jumlah_tersedia': jumlahTersedia ?? jumlahTotal,
-        if (fotoUrl != null) 'foto_alat': fotoUrl,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id_alat', idAlat);
+      await _supabase
+          .from('alat')
+          .update({
+            'nama_alat': namaAlat.trim(),
+            'id_kategori': idKategori,
+            'kondisi': kondisi,
+            'status': status,
+            'jumlah_total': jumlahTotal,
+            'jumlah_tersedia': jumlahTersedia ?? jumlahTotal,
+            if (fotoUrl != null) 'foto_alat': fotoUrl,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id_alat', idAlat);
 
       emit(const CrudAlatSuccess('Alat berhasil diupdate'));
-      
+
       // Langsung silent load tanpa delay
       await _silentLoadAlat();
     } catch (e) {
@@ -190,18 +241,24 @@ class CrudAlatCubit extends Cubit<CrudAlatState> {
           .from('peminjaman')
           .select()
           .eq('id_alat', idAlat)
-          .filter('status_peminjaman',
-              'in', '("diajukan","disetujui","dipinjam")');
+          .filter(
+            'status_peminjaman',
+            'in',
+            '("diajukan","disetujui","dipinjam")',
+          );
 
       if (peminjaman.isNotEmpty) {
-        emit(const CrudAlatError(
-            'Tidak dapat menghapus alat yang sedang dipinjam'));
+        emit(
+          const CrudAlatError(
+            'Tidak dapat menghapus alat yang sedang dipinjam',
+          ),
+        );
         return;
       }
 
       await _supabase.from('alat').delete().eq('id_alat', idAlat);
       emit(const CrudAlatSuccess('Alat berhasil dihapus'));
-      
+
       // Langsung silent load tanpa delay
       await _silentLoadAlat();
     } catch (e) {
@@ -217,21 +274,22 @@ class CrudAlatCubit extends Cubit<CrudAlatState> {
     String? searchQuery,
   }) {
     return alatList.where((alat) {
-      final search = searchQuery == null ||
+      final search =
+          searchQuery == null ||
           searchQuery.isEmpty ||
-          alat['nama_alat']
-              .toString()
-              .toLowerCase()
-              .contains(searchQuery.toLowerCase());
+          alat['nama_alat'].toString().toLowerCase().contains(
+            searchQuery.toLowerCase(),
+          );
 
-      final st = status == null ||
+      final st =
+          status == null ||
           status == 'Semua' ||
           alat['status'] == status.toLowerCase();
 
-      final kat = kategori == null ||
+      final kat =
+          kategori == null ||
           kategori == 'Semua' ||
-          (alat['kategori'] != null &&
-              alat['kategori']['nama'] == kategori);
+          (alat['kategori'] != null && alat['kategori']['nama'] == kategori);
 
       return search && st && kat;
     }).toList();

@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseService {
@@ -22,7 +23,10 @@ class SupabaseService {
     _client = Supabase.instance.client;
   }
 
-  // Auth Methods
+  // ============================================================================
+  // AUTH METHODS
+  // ============================================================================
+  
   Future<AuthResponse> signInWithEmail({
     required String email,
     required String password,
@@ -51,7 +55,10 @@ class SupabaseService {
 
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
 
-  // User Methods
+  // ============================================================================
+  // USER METHODS
+  // ============================================================================
+  
   Future<Map<String, dynamic>?> getUserData(String userId) async {
     final response = await _client
         .from('users')
@@ -85,7 +92,126 @@ class SupabaseService {
         .eq('user_id', userId);
   }
 
-  // Alat Methods
+  // ============================================================================
+  // PROFILE MANAGEMENT METHODS
+  // ============================================================================
+  
+  /// Upload profile photo ke Supabase Storage
+  Future<String> uploadProfilePhoto({
+    required String userId,
+    required Uint8List imageBytes,
+    required String fileName,
+  }) async {
+    try {
+      final String filePath = '$userId/$fileName';
+
+      // Delete old photo if exists
+      try {
+        final existingFiles = await _client.storage
+            .from('profile-image')
+            .list(path: userId);
+        
+        for (var file in existingFiles) {
+          await _client.storage
+              .from('profile-image')
+              .remove(['$userId/${file.name}']);
+        }
+      } catch (e) {
+        // Ignore if no files exist
+        print('No existing files to delete: $e');
+      }
+
+      // Upload new photo using uploadBinary for Uint8List
+      await _client.storage.from('profile-image').uploadBinary(
+            filePath,
+            imageBytes,
+            fileOptions: const FileOptions(
+              cacheControl: '3600',
+              upsert: true,
+            ),
+          );
+
+      // Get public URL
+      final String publicUrl = _client.storage
+          .from('profile-image')
+          .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (e) {
+      throw Exception('Gagal mengupload foto: ${e.toString()}');
+    }
+  }
+
+  /// Delete profile photo from storage
+  Future<void> deleteProfilePhoto({required String userId}) async {
+    try {
+      final existingFiles = await _client.storage
+          .from('profile-image')
+          .list(path: userId);
+
+      if (existingFiles.isNotEmpty) {
+        final List<String> filesToDelete = existingFiles
+            .map((file) => '$userId/${file.name}')
+            .toList();
+
+        await _client.storage
+            .from('profile-image')
+            .remove(filesToDelete);
+      }
+    } catch (e) {
+      throw Exception('Gagal menghapus foto: ${e.toString()}');
+    }
+  }
+
+  /// Update user profile data (nama dan/atau foto_url)
+ /// Update user profile data (nama dan/atau foto_url)
+Future<void> updateUserProfile({
+  required String userId,
+  String? nama,
+  String? fotoUrl,
+}) async {
+  try {
+    final Map<String, dynamic> updateData = {};
+
+    // Update nama jika provided
+    if (nama != null) {
+      updateData['nama'] = nama;
+    }
+
+    // Update foto_url
+    // Jika fotoUrl provided (bukan null), update dengan URL baru
+    // Jika fotoUrl adalah null DAN nama juga null, berarti hapus foto
+    if (fotoUrl != null) {
+      updateData['foto_url'] = fotoUrl;
+    } else if (nama == null) {
+      // Jika hanya fotoUrl yang null (tanpa nama), berarti hapus foto
+      updateData['foto_url'] = null;
+    }
+
+    // Hanya update jika ada data yang berubah
+    if (updateData.isNotEmpty) {
+      await _client.from('users').update(updateData).eq('user_id', userId);
+    }
+  } catch (e) {
+    throw Exception('Gagal update profil: ${e.toString()}');
+  }
+}
+
+  /// Update user password
+  Future<void> updatePassword(String newPassword) async {
+    try {
+      await _client.auth.updateUser(
+        UserAttributes(password: newPassword),
+      );
+    } catch (e) {
+      throw Exception('Gagal update password: ${e.toString()}');
+    }
+  }
+
+  // ============================================================================
+  // ALAT METHODS
+  // ============================================================================
+  
   Future<List<Map<String, dynamic>>> getAlat({
     String? status,
     String? kategori,
@@ -128,7 +254,10 @@ class SupabaseService {
     await _client.from('alat').delete().eq('id_alat', idAlat);
   }
 
-  // Peminjaman Methods
+  // ============================================================================
+  // PEMINJAMAN METHODS
+  // ============================================================================
+  
   Future<List<Map<String, dynamic>>> getPeminjaman({
     String? userId,
     String? status,
@@ -159,7 +288,7 @@ class SupabaseService {
         ''')
         .eq('id_peminjaman', idPeminjaman)
         .single();
-  }
+  } 
 
   Future<void> createPeminjaman(Map<String, dynamic> data) async {
     await _client.from('peminjaman').insert(data);
@@ -175,7 +304,10 @@ class SupabaseService {
         .eq('id_peminjaman', idPeminjaman);
   }
 
-  // Pengembalian Methods
+  // ============================================================================
+  // PENGEMBALIAN METHODS
+  // ============================================================================
+  
   Future<void> createPengembalian(Map<String, dynamic> data) async {
     await _client.from('pengembalian').insert(data);
   }
@@ -199,7 +331,10 @@ class SupabaseService {
     return await query.order('created_at', ascending: false);
   }
 
-  // Setting Denda
+  // ============================================================================
+  // SETTING DENDA METHODS
+  // ============================================================================
+  
   Future<Map<String, dynamic>> getSettingDenda() async {
     final response = await _client
         .from('setting_denda')
@@ -218,7 +353,10 @@ class SupabaseService {
         .eq('id_setting', idSetting);
   }
 
-  // Log Aktivitas
+  // ============================================================================
+  // LOG AKTIVITAS METHODS
+  // ============================================================================
+  
   Future<void> createLogAktivitas({
     required String namaTabel,
     required String operasi,

@@ -38,7 +38,6 @@ class Pengembalian {
   });
 
   factory Pengembalian.fromMap(Map<String, dynamic> map) {
-    // Extract nested data dengan null safety
     final peminjaman = map['peminjaman'] as Map<String, dynamic>?;
     final users = peminjaman?['users'] as Map<String, dynamic>?;
     final alat = peminjaman?['alat'] as Map<String, dynamic>?;

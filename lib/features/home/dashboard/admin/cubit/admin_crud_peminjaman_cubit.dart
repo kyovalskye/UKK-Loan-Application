@@ -116,9 +116,9 @@ class CrudPeminjamanCubit extends Cubit<CrudPeminjamanState> {
   }) async {
     try {
       // Validasi jumlah_total
-      final jumlah_total = await getjumlah_totalAlat(idAlat);
-      if (jumlah > jumlah_total) {
-        emit(CrudPeminjamanError('Jumlah melebihi jumlah_total tersedia ($jumlah_total)'));
+      final jumlahTotal = await getjumlah_totalAlat(idAlat);
+      if (jumlah > jumlahTotal) {
+        emit(CrudPeminjamanError('Jumlah melebihi jumlah_total tersedia ($jumlahTotal)'));
         return;
       }
 
@@ -126,7 +126,7 @@ class CrudPeminjamanCubit extends Cubit<CrudPeminjamanState> {
       final kode = 'PMJ-${now.year}-${now.millisecondsSinceEpoch % 10000}';
 
       await _supabase.from('peminjaman').insert({
-        'kode_peminjaman': kode,
+        'kode_pemnjaman': kode,
         'id_user': idUser,
         'id_alat': idAlat,
         'tanggal_pinjam': tanggalPinjam,
@@ -154,9 +154,9 @@ class CrudPeminjamanCubit extends Cubit<CrudPeminjamanState> {
   }) async {
     try {
       // Validasi jumlah_total
-      final jumlah_total = await getjumlah_totalAlat(idAlat);
-      if (jumlah > jumlah_total) {
-        emit(CrudPeminjamanError('Jumlah melebihi jumlah_total tersedia ($jumlah_total)'));
+      final jumlahTotal = await getjumlah_totalAlat(idAlat);
+      if (jumlah > jumlahTotal) {
+        emit(CrudPeminjamanError('Jumlah melebihi jumlah_total tersedia ($jumlahTotal)'));
         return;
       }
 

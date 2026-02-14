@@ -1,108 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rentalify/core/themes/app_colors.dart';
+import 'package:rentalify/features/home/dashboard/admin/cubit/admin_log_aktivitas_cubit.dart';
+import 'package:rentalify/features/home/dashboard/admin/cubit/admin_log_aktivitas_state.dart';
+import 'package:intl/intl.dart';
 
-class LogAktivitasPage extends StatefulWidget {
+class LogAktivitasPage extends StatelessWidget {
   const LogAktivitasPage({super.key});
 
   @override
-  State<LogAktivitasPage> createState() => _LogAktivitasPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => LogAktivitasCubit()..loadLogs(),
+      child: const _LogAktivitasPageContent(),
+    );
+  }
 }
 
-class _LogAktivitasPageState extends State<LogAktivitasPage> {
+class _LogAktivitasPageContent extends StatefulWidget {
+  const _LogAktivitasPageContent();
+
+  @override
+  State<_LogAktivitasPageContent> createState() =>
+      _LogAktivitasPageContentState();
+}
+
+class _LogAktivitasPageContentState extends State<_LogAktivitasPageContent> {
   String _selectedTableFilter = 'Semua';
   String _selectedOperasiFilter = 'Semua';
-
-  // Dummy data
-  final List<Map<String, dynamic>> _logList = [
-    {
-      'id': 1,
-      'user_nama': 'Admin User',
-      'user_email': 'admin@example.com',
-      'nama_tabel': 'peminjaman',
-      'operasi': 'INSERT',
-      'waktu': '2024-01-22 14:30:00',
-      'data_baru': {
-        'kode_peminjaman': 'PMJ-2024-015',
-        'nama_alat': 'OBD2 Scanner Launch X431 Pro',
-        'jumlah': 1,
-        'tanggal_pinjam': '2024-01-22',
-        'tanggal_kembali': '2024-01-29',
-        'keperluan': 'Untuk diagnosis kendaraan',
-      },
-    },
-    {
-      'id': 2,
-      'user_nama': 'Petugas 1',
-      'user_email': 'petugas@example.com',
-      'nama_tabel': 'peminjaman',
-      'operasi': 'UPDATE',
-      'waktu': '2024-01-22 13:15:00',
-      'data_lama': {
-        'status': 'diajukan',
-      },
-      'data_baru': {
-        'status': 'disetujui',
-        'catatan_admin': 'Peminjaman disetujui',
-      },
-    },
-    {
-      'id': 3,
-      'user_nama': 'Admin User',
-      'user_email': 'admin@example.com',
-      'nama_tabel': 'alat',
-      'operasi': 'UPDATE',
-      'waktu': '2024-01-22 12:00:00',
-      'data_lama': {
-        'jumlah_tersedia': 5,
-        'status': 'tersedia',
-      },
-      'data_baru': {
-        'jumlah_tersedia': 4,
-        'status': 'dipinjam',
-      },
-    },
-    {
-      'id': 4,
-      'user_nama': 'Admin User',
-      'user_email': 'admin@example.com',
-      'nama_tabel': 'users',
-      'operasi': 'INSERT',
-      'waktu': '2024-01-22 10:30:00',
-      'data_baru': {
-        'nama': 'John Doe',
-        'email': 'john@example.com',
-        'role': 'peminjam',
-      },
-    },
-    {
-      'id': 5,
-      'user_nama': 'Petugas 1',
-      'user_email': 'petugas@example.com',
-      'nama_tabel': 'pengembalian',
-      'operasi': 'INSERT',
-      'waktu': '2024-01-22 09:45:00',
-      'data_baru': {
-        'kode_peminjaman': 'PMJ-2024-012',
-        'kondisi_kembali': 'baik',
-        'keterlambatan': 2,
-        'denda_keterlambatan': 10000,
-        'total_denda': 10000,
-      },
-    },
-    {
-      'id': 6,
-      'user_nama': 'Admin User',
-      'user_email': 'admin@example.com',
-      'nama_tabel': 'alat',
-      'operasi': 'DELETE',
-      'waktu': '2024-01-21 16:20:00',
-      'data_lama': {
-        'nama_alat': 'Old Tool (Broken)',
-        'kategori': 'Hand Tools',
-        'status': 'rusak_berat',
-      },
-    },
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -124,16 +49,28 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
                         value: _selectedTableFilter,
                         items: [
                           'Semua',
-                          'Alat',
-                          'Users',
-                          'Peminjaman',
-                          'Pengembalian',
-                          'Kategori'
+                          'alat',
+                          'users',
+                          'peminjaman',
+                          'pengembalian',
+                          'kategori'
                         ],
+                        displayNames: {
+                          'Semua': 'Semua',
+                          'alat': 'Alat',
+                          'users': 'Users',
+                          'peminjaman': 'Peminjaman',
+                          'pengembalian': 'Pengembalian',
+                          'kategori': 'Kategori',
+                        },
                         onChanged: (value) {
                           setState(() {
                             _selectedTableFilter = value!;
                           });
+                          context.read<LogAktivitasCubit>().filterByTable(
+                                value!,
+                                _selectedOperasiFilter,
+                              );
                         },
                       ),
                     ),
@@ -143,10 +80,15 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
                         label: 'Operasi',
                         value: _selectedOperasiFilter,
                         items: ['Semua', 'INSERT', 'UPDATE', 'DELETE'],
+                        displayNames: {},
                         onChanged: (value) {
                           setState(() {
                             _selectedOperasiFilter = value!;
                           });
+                          context.read<LogAktivitasCubit>().filterByOperasi(
+                                value!,
+                                _selectedTableFilter,
+                              );
                         },
                       ),
                     ),
@@ -158,13 +100,106 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
 
           // Timeline List
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _logList.length,
-              itemBuilder: (context, index) {
-                final log = _logList[index];
-                final isLast = index == _logList.length - 1;
-                return _buildTimelineItem(log, isLast);
+            child: BlocBuilder<LogAktivitasCubit, LogAktivitasState>(
+              builder: (context, state) {
+                if (state is LogAktivitasLoading) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.primary,
+                    ),
+                  );
+                }
+
+                if (state is LogAktivitasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: AppColors.error,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          state.message,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.error,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            context.read<LogAktivitasCubit>().refreshLogs(
+                                  tableFilter: _selectedTableFilter,
+                                  operasiFilter: _selectedOperasiFilter,
+                                );
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Coba Lagi'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (state is LogAktivitasLoaded) {
+                  if (state.logs.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.inbox_outlined,
+                            size: 64,
+                            color: AppColors.textTertiary,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Tidak ada log aktivitas',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _selectedTableFilter != 'Semua' ||
+                                    _selectedOperasiFilter != 'Semua'
+                                ? 'Coba ubah filter'
+                                : 'Belum ada aktivitas yang tercatat',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      await context.read<LogAktivitasCubit>().refreshLogs(
+                            tableFilter: _selectedTableFilter,
+                            operasiFilter: _selectedOperasiFilter,
+                          );
+                    },
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: state.logs.length,
+                      itemBuilder: (context, index) {
+                        final log = state.logs[index];
+                        final isLast = index == state.logs.length - 1;
+                        return _buildTimelineItem(log, isLast);
+                      },
+                    ),
+                  );
+                }
+
+                return const SizedBox.shrink();
               },
             ),
           ),
@@ -177,6 +212,7 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
     required String label,
     required String value,
     required List<String> items,
+    required Map<String, String> displayNames,
     required Function(String?) onChanged,
   }) {
     return Container(
@@ -195,7 +231,7 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
           items: items.map((item) {
             return DropdownMenuItem(
               value: item,
-              child: Text(item),
+              child: Text(displayNames[item] ?? item),
             );
           }).toList(),
           onChanged: onChanged,
@@ -239,7 +275,7 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
             ],
           ),
           const SizedBox(width: 12),
-          
+
           // Content
           Expanded(
             child: Container(
@@ -253,6 +289,10 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
   }
 
   Widget _buildLogCard(Map<String, dynamic> log) {
+    final user = log['users'] as Map<String, dynamic>?;
+    final userName = user?['nama'] ?? 'Unknown User';
+    final userEmail = user?['email'] ?? 'No Email';
+
     return Container(
       decoration: BoxDecoration(
         gradient: AppColors.cardGradient,
@@ -280,7 +320,7 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              log['nama_tabel'].toUpperCase(),
+                              _formatTableName(log['nama_tabel']),
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
@@ -291,7 +331,7 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
                         ],
                       ),
                     ),
-                    Icon(
+                    const Icon(
                       Icons.chevron_right,
                       size: 20,
                       color: AppColors.textTertiary,
@@ -307,7 +347,7 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
                       radius: 16,
                       backgroundColor: AppColors.info.withOpacity(0.2),
                       child: Text(
-                        log['user_nama'][0].toUpperCase(),
+                        userName.isNotEmpty ? userName[0].toUpperCase() : '?',
                         style: const TextStyle(
                           color: AppColors.info,
                           fontSize: 14,
@@ -321,7 +361,7 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            log['user_nama'],
+                            userName,
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -329,7 +369,7 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
                             ),
                           ),
                           Text(
-                            log['user_email'],
+                            userEmail,
                             style: const TextStyle(
                               fontSize: 11,
                               color: AppColors.textTertiary,
@@ -352,7 +392,7 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      log['waktu'],
+                      _formatDateTime(log['waktu_operasi']),
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.textTertiary,
@@ -399,7 +439,7 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
     if (dataBaru == null || dataBaru.isEmpty) return const SizedBox.shrink();
 
     final entries = dataBaru.entries.take(3).toList();
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -413,43 +453,43 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
         ),
         const SizedBox(height: 6),
         ...entries.map((entry) => Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 4,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: RichText(
-                  text: TextSpan(
-                    style: const TextStyle(fontSize: 12),
-                    children: [
-                      TextSpan(
-                        text: '${entry.key}: ',
-                        style: const TextStyle(
-                          color: AppColors.textTertiary,
-                        ),
-                      ),
-                      TextSpan(
-                        text: entry.value.toString(),
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 4,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: RichText(
+                      text: TextSpan(
+                        style: const TextStyle(fontSize: 12),
+                        children: [
+                          TextSpan(
+                            text: '${entry.key}: ',
+                            style: const TextStyle(
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                          TextSpan(
+                            text: _formatValue(entry.value),
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        )),
+            )),
         if (dataBaru.length > 3)
           Padding(
             padding: const EdgeInsets.only(top: 4),
@@ -492,7 +532,41 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
     }
   }
 
+  String _formatTableName(String tableName) {
+    final Map<String, String> tableNames = {
+      'alat': 'ALAT',
+      'users': 'USERS',
+      'peminjaman': 'PEMINJAMAN',
+      'pengembalian': 'PENGEMBALIAN',
+      'kategori': 'KATEGORI',
+      'setting_denda': 'SETTING DENDA',
+    };
+    return tableNames[tableName] ?? tableName.toUpperCase();
+  }
+
+  String _formatDateTime(String? dateTime) {
+    if (dateTime == null) return '-';
+    try {
+      final dt = DateTime.parse(dateTime);
+      return DateFormat('dd/MM/yyyy HH:mm:ss').format(dt);
+    } catch (e) {
+      return dateTime;
+    }
+  }
+
+  String _formatValue(dynamic value) {
+    if (value == null) return 'null';
+    if (value is String && value.length > 50) {
+      return '${value.substring(0, 50)}...';
+    }
+    return value.toString();
+  }
+
   void _showDetailDialog(Map<String, dynamic> log) {
+    final user = log['users'] as Map<String, dynamic>?;
+    final userName = user?['nama'] ?? 'Unknown User';
+    final userEmail = user?['email'] ?? 'No Email';
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -503,7 +577,7 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                log['nama_tabel'].toUpperCase(),
+                _formatTableName(log['nama_tabel']),
                 style: const TextStyle(fontSize: 18),
               ),
             ),
@@ -514,11 +588,12 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildDetailSection('User', log['user_nama']),
-              _buildDetailSection('Email', log['user_email']),
-              _buildDetailSection('Waktu', log['waktu']),
+              _buildDetailSection('User', userName),
+              _buildDetailSection('Email', userEmail),
+              _buildDetailSection('Waktu', _formatDateTime(log['waktu_operasi'])),
+              _buildDetailSection('ID Record', log['id_record']?.toString() ?? '-'),
               const Divider(color: AppColors.border),
-              
+
               if (log['data_lama'] != null) ...[
                 const Text(
                   'Data Lama:',
@@ -532,7 +607,7 @@ class _LogAktivitasPageState extends State<LogAktivitasPage> {
                 _buildJsonData(log['data_lama']),
                 const SizedBox(height: 12),
               ],
-              
+
               if (log['data_baru'] != null) ...[
                 Text(
                   log['operasi'] == 'INSERT' ? 'Data:' : 'Data Baru:',
